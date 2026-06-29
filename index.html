@@ -1674,6 +1674,7 @@ class VJProcessor {
     this.registerEffects();
     this.buildUI();
     this.setupEventListeners();
+
     this.startLoop();
 
     // Auto-start webcam
@@ -1686,6 +1687,61 @@ class VJProcessor {
         this.detector.startFallback();
       }
     }, 15000);
+  }
+
+
+  setupEventListeners() {
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '?') {
+        toggleShortcuts();
+      } else if (e.key === 'F11') {
+        e.preventDefault();
+        toggleFullscreen();
+      } else if (e.key === 'Escape') {
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+          document.getElementById('app').classList.remove('fullscreen');
+        }
+        document.getElementById('shortcutsOverlay').classList.remove('show');
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        CONFIG.paused = !CONFIG.paused;
+      } else if (e.key === 'm' || e.key === 'M') {
+        toggleMic();
+      } else if (e.key === 'c' || e.key === 'C') {
+        CONFIG.showLandmarks = !CONFIG.showLandmarks;
+      } else if (e.key === 'f' || e.key === 'F') {
+        CONFIG.mirrored = !CONFIG.mirrored;
+      } else if (e.key === '+' || e.key === '=') {
+        CONFIG.intensity = Math.min(1, CONFIG.intensity + 0.05);
+        document.getElementById('sliderIntensity').value = Math.round(CONFIG.intensity * 100);
+        document.getElementById('valIntensity').textContent = Math.round(CONFIG.intensity * 100) + '%';
+      } else if (e.key === '-') {
+        CONFIG.intensity = Math.max(0, CONFIG.intensity - 0.05);
+        document.getElementById('sliderIntensity').value = Math.round(CONFIG.intensity * 100);
+        document.getElementById('valIntensity').textContent = Math.round(CONFIG.intensity * 100) + '%';
+      } else if (e.key >= '1' && e.key <= '9') {
+        const idx = parseInt(e.key) - 1;
+        if (idx < this.engine.effects.length) {
+          this.engine.setEffect(idx);
+          this.updateActiveThumb();
+          this.updateInfoPanel();
+          this.updateColorUI();
+        }
+      } else if (e.key === 'ArrowRight') {
+        const next = (this.engine.activeIndex + 1) % this.engine.effects.length;
+        this.engine.setEffect(next);
+        this.updateActiveThumb();
+        this.updateInfoPanel();
+        this.updateColorUI();
+      } else if (e.key === 'ArrowLeft') {
+        const prev = (this.engine.activeIndex - 1 + this.engine.effects.length) % this.engine.effects.length;
+        this.engine.setEffect(prev);
+        this.updateActiveThumb();
+        this.updateInfoPanel();
+        this.updateColorUI();
+      }
+    });
   }
 
   registerEffects() {
@@ -2029,6 +2085,10 @@ class VJProcessor {
 // FUNCIONES GLOBALES
 // ============================================================
 let app;
+
+function startWebcam() {
+  if (app) app.startWebcam();
+}
 
 function toggleFullscreen() {
   const el = document.getElementById('app');
