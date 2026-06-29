@@ -91,7 +91,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .no-detection .text{font-size:14px}
 .no-detection.hidden{display:none}
 /* Loading */
-.loading-overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1000;gap:16px}
+.loading-overlay{position:fixed;inset:0;background:rgba(10,10,18,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1000;gap:16px;backdrop-filter:blur(4px)}
 .loading-overlay.hidden{display:none}
 .loading-spinner{width:40px;height:40px;border:3px solid var(--bg3);border-top-color:var(--neon-cyan);border-radius:50%;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -1436,18 +1436,24 @@ class BodyDetector {
       height: 480,
     });
 
-    await this.camera.start();
-    this.ready = true;
-    document.getElementById('loadingOverlay').classList.add('hidden');
-    // Clear load timeout since MediaPipe loaded successfully
-    if (window._vjApp && window._vjApp._loadTimeout) {
-      clearTimeout(window._vjApp._loadTimeout);
-      window._vjApp._loadTimeout = null;
+    // Wrap camera.start() in race with timeout to avoid infinite hang
+    // on browsers that don't resolve/reject getUserMedia promptly
+    try {
+      await Promise.race([
+        this.camera.start(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('camera timeout')), 12000))
+      ]);
+      this.ready = true;
+      document.getElementById('loadingOverlay').classList.add('hidden');
+      // Clear load timeout since MediaPipe loaded successfully
+      if (window._vjApp && window._vjApp._loadTimeout) {
+        clearTimeout(window._vjApp._loadTimeout);
+        window._vjApp._loadTimeout = null;
+      }
+    } catch (e) {
+      console.warn('MediaPipe init failed (camera error or timeout):', e.message);
+      document.getElementById('loadingOverlay').classList.add('hidden');
     }
-  } catch (e) {
-    console.warn('MediaPipe init failed, continuing without pose detection:', e);
-    document.getElementById('loadingOverlay').classList.add('hidden');
-  }
 }
 
   async startFallback() {
@@ -1962,6 +1968,11 @@ class VJProcessor {
 
   async startWebcam() {
     try {
+      // Hide loading overlay BEFORE asking for webcam permissions
+      // so the browser permission dialog is visible
+      const loading = document.getElementById('loadingOverlay');
+      if (loading) loading.classList.add('hidden');
+
       const video = document.getElementById('webcamVideo');
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
@@ -1973,6 +1984,9 @@ class VJProcessor {
       const mini = document.getElementById('webcamMini');
       mini.srcObject = stream;
 
+      // Show loading again while MediaPipe model loads
+      if (loading) loading.classList.remove('hidden');
+
       // Init MediaPipe
       await this.detector.init((bodyData) => {
         this.bodyData = bodyData;
@@ -1983,6 +1997,9 @@ class VJProcessor {
       document.getElementById('btnWebcam').classList.add('active');
     } catch (e) {
       console.error('Webcam error:', e);
+      const loading = document.getElementById('loadingOverlay');
+      if (loading) loading.classList.add('hidden');
+      document.getElementById('noDetection').classList.remove('hidden');
       document.getElementById('noDetection').querySelector('.text').textContent = 'Error accediendo a la webcam';
     }
   }
