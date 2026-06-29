@@ -1439,6 +1439,22 @@ class BodyDetector {
     await this.camera.start();
     this.ready = true;
     document.getElementById('loadingOverlay').classList.add('hidden');
+    // Clear load timeout since MediaPipe loaded successfully
+    if (window._vjApp && window._vjApp._loadTimeout) {
+      clearTimeout(window._vjApp._loadTimeout);
+      window._vjApp._loadTimeout = null;
+    }
+  } catch (e) {
+    console.warn('MediaPipe init failed, continuing without pose detection:', e);
+    document.getElementById('loadingOverlay').classList.add('hidden');
+  }
+}
+
+  async startFallback() {
+    // Called by VJProcessor if timeout fires before MediaPipe loads
+    document.getElementById('loadingOverlay').classList.add('hidden');
+    document.getElementById('noDetection').classList.remove('hidden');
+    document.getElementById('noDetection').querySelector('.text').textContent = 'Webcam no disponible — sube un vídeo o foto';
   }
 
   processResults(results) {
@@ -1656,6 +1672,14 @@ class VJProcessor {
 
     // Auto-start webcam
     setTimeout(() => this.startWebcam(), 500);
+
+    // Fallback timeout: if MediaPipe takes too long, hide loading and continue
+    this._loadTimeout = setTimeout(() => {
+      console.warn('MediaPipe load timeout — continuing without pose detection');
+      if (this.detector && this.detector.startFallback) {
+        this.detector.startFallback();
+      }
+    }, 15000);
   }
 
   registerEffects() {
