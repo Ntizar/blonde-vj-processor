@@ -7,9 +7,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 <style>
-/* ============================================================
-   BLONDE VOULAIN VJ PROCESSOR — Cyberpunk Theme
-   ============================================================ */
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
   --bg:#0a0a12;--bg2:#0d0d1a;--bg3:#111128;
@@ -23,9 +20,9 @@
 }
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Segoe UI','SF Pro',system-ui,sans-serif}
 /* Layout */
-.app{display:grid;grid-template-columns:240px 1fr 200px;grid-template-rows:48px 1fr 80px;height:100vh;gap:0}
+.app{display:grid;grid-template-columns:240px 1fr 200px;grid-template-rows:48px 1fr 80px;height:100vh;gap:0;transition:grid-template-columns .3s,grid-template-rows .3s}
 .app.fullscreen{grid-template-columns:1fr;grid-template-rows:1fr}
-.app.fullscreen .panel-left,.app.fullscreen .panel-right,.app.fullscreen .header,.app.fullscreen .bottom-bar{display:none}
+.app.fullscreen .panel-left,.app.fullscreen .panel-right,.app.fullscreen .header,.app.fullscreen .bottom-bar{display:none !important}
 /* Header */
 .header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--panel-bg);border-bottom:1px solid var(--panel-border);z-index:10}
 .header h1{font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;background:linear-gradient(90deg,var(--neon-cyan),var(--neon-magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
@@ -57,11 +54,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 /* Canvas area */
 .canvas-container{position:relative;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center}
 #vjCanvas{display:block;width:100%;height:100%;object-fit:contain}
-#videoInput{display:none}
-.video-overlay{position:absolute;bottom:10px;left:10px;font-size:10px;color:var(--text3);pointer-events:none}
+#videoInput,#imageInput{display:none}
+.video-overlay{position:absolute;bottom:10px;left:10px;font-size:10px;color:var(--text3);pointer-events:none;z-index:5}
 /* Bottom Bar */
 .bottom-bar{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:8px 16px;background:var(--panel-bg);border-top:1px solid var(--panel-border);overflow-x:auto}
-.input-group{display:flex;gap:6px;align-items:center}
+.input-group{display:flex;gap:6px;align-items:center;flex-shrink:0}
 .effect-grid{display:flex;gap:4px;flex-wrap:nowrap}
 .effect-thumb{width:56px;height:56px;border-radius:6px;border:2px solid var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:all .2s;flex-shrink:0;background:var(--bg2)}
 .effect-thumb:hover{border-color:var(--neon-cyan);transform:scale(1.05)}
@@ -77,7 +74,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .slider-row input[type=range]{flex:1;accent-color:var(--neon-cyan);height:4px}
 .slider-row .val{font-size:10px;color:var(--text);font-family:monospace;min-width:30px;text-align:right}
 /* Mode selector */
-.mode-pills{display:flex;gap:4px}
+.mode-pills{display:flex;gap:4px;flex-wrap:wrap}
 .mode-pill{font-size:9px;padding:3px 8px;border-radius:10px;border:1px solid var(--bg3);color:var(--text3);cursor:pointer;transition:all .2s;text-transform:uppercase;letter-spacing:0.5px}
 .mode-pill:hover{border-color:var(--neon-cyan);color:var(--text)}
 .mode-pill.active{background:rgba(0,240,255,0.15);border-color:var(--neon-cyan);color:var(--neon-cyan)}
@@ -89,7 +86,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .fullscreen-hint{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--panel-bg);border:1px solid var(--panel-border);padding:8px 16px;border-radius:6px;font-size:11px;color:var(--text2);opacity:0;transition:opacity .3s;pointer-events:none;z-index:100}
 .fullscreen-hint.show{opacity:1}
 /* No detection overlay */
-.no-detection{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:var(--text3);pointer-events:none}
+.no-detection{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:var(--text3);pointer-events:none;z-index:2}
 .no-detection .icon{font-size:48px;margin-bottom:12px;opacity:0.5}
 .no-detection .text{font-size:14px}
 .no-detection.hidden{display:none}
@@ -107,6 +104,37 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .shortcut-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)}
 .shortcut-key{font-family:monospace;color:var(--neon-yellow);font-size:12px;background:var(--bg3);padding:2px 8px;border-radius:3px}
 .shortcut-desc{font-size:12px;color:var(--text2)}
+/* Color picker section */
+.color-edit-area{display:flex;flex-direction:column;gap:4px}
+.color-edit-row{display:flex;align-items:center;gap:6px}
+.color-edit-row input[type=color]{width:28px;height:28px;border:1px solid var(--panel-border);border-radius:4px;cursor:pointer;background:transparent;padding:0}
+.color-edit-row .color-hex{font-size:10px;color:var(--text);font-family:monospace;flex:1}
+.color-edit-row .btn-remove{background:none;border:1px solid rgba(255,0,64,0.3);color:var(--neon-red);border-radius:3px;padding:2px 6px;cursor:pointer;font-size:9px}
+.btn-add-color{width:100%;padding:4px;border:1px dashed var(--panel-border);border-radius:4px;background:transparent;color:var(--text3);cursor:pointer;font-size:9px;transition:all .2s}
+.btn-add-color:hover{border-color:var(--neon-cyan);color:var(--neon-cyan)}
+/* Background mode selector */
+.bg-mode-pills{display:flex;gap:4px}
+.bg-mode-pill{font-size:9px;padding:3px 8px;border-radius:10px;border:1px solid var(--bg3);color:var(--text3);cursor:pointer;transition:all .2s;text-transform:uppercase;letter-spacing:0.5px}
+.bg-mode-pill:hover{border-color:var(--neon-cyan);color:var(--text)}
+.bg-mode-pill.active{background:rgba(0,240,255,0.15);border-color:var(--neon-cyan);color:var(--neon-cyan)}
+/* Background controls */
+.bg-controls{display:flex;flex-direction:column;gap:6px}
+/* Responsive */
+@media(max-width:900px){
+  .app{grid-template-columns:1fr;grid-template-rows:44px 1fr auto auto}
+  .panel-left{flex-direction:row;flex-wrap:wrap;gap:8px;padding:8px;max-height:120px;border-right:none;border-bottom:1px solid var(--panel-border);overflow-x:auto}
+  .panel-right{display:none}
+  .bottom-bar{flex-wrap:wrap;height:auto;max-height:120px}
+  .effect-grid{overflow-x:auto}
+}
+@media(max-width:600px){
+  .header h1{font-size:11px}
+  .btn{padding:4px 8px;font-size:9px}
+  .effect-thumb{width:44px;height:44px}
+  .effect-thumb .emoji{font-size:14px}
+  .effect-thumb .label{font-size:6px}
+  .slider-row label{min-width:45px;font-size:9px}
+}
 </style>
 </head>
 <body>
@@ -203,6 +231,23 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     </div>
 
     <div class="panel-section">
+      <div class="panel-title">Modo Fondo</div>
+      <div class="bg-mode-pills">
+        <div class="bg-mode-pill active" data-bg="webcam" onclick="setBgMode('webcam')">📷 Webcam</div>
+        <div class="bg-mode-pill" data-bg="video" onclick="setBgMode('video')">📁 Vídeo</div>
+        <div class="bg-mode-pill" data-bg="image" onclick="setBgMode('image')">🖼️ Foto</div>
+        <div class="bg-mode-pill" data-bg="black" onclick="setBgMode('black')">⬛ Negro</div>
+      </div>
+      <button class="btn" id="btnUploadBg" onclick="document.getElementById('imageInput').click()" style="display:none">📁 Cargar imagen/vídeo</button>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Colores del Efecto</div>
+      <div class="color-edit-area" id="colorEditArea"></div>
+      <button class="btn-add-color" onclick="addColorToActive()">+ Añadir color</button>
+    </div>
+
+    <div class="panel-section">
       <div class="panel-title">Atajos</div>
       <div style="font-size:10px;color:var(--text3);line-height:1.6">
         <span style="color:var(--neon-yellow)">?</span> Ayuda &nbsp;
@@ -217,10 +262,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   <div class="canvas-container" id="canvasContainer">
     <canvas id="vjCanvas" width="1280" height="720"></canvas>
     <video id="videoInput" playsinline></video>
+    <input type="file" id="imageInput" accept="image/*,video/*" style="display:none" onchange="loadBackground(event)">
     <video id="webcamVideo" playsinline autoplay muted style="display:none"></video>
     <div class="no-detection" id="noDetection">
       <div class="icon">📷</div>
-      <div class="text">Activa la webcam o sube un vídeo</div>
+      <div class="text">Activa la webcam o sube un vídeo/foto</div>
     </div>
     <div class="video-overlay" id="videoOverlay"></div>
   </div>
@@ -264,8 +310,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   </div>
 </div>
 
-<!-- Hidden file input -->
-<input type="file" id="fileInput" accept="video/*" style="display:none" onchange="loadVideo(event)">
 
 <script>
 // ============================================================
@@ -281,6 +325,7 @@ const CONFIG = {
   showLandmarks: false,
   audioMode: 'hybrid',
   paused: false,
+  bgMode: 'webcam', // webcam | video | image | black
 };
 
 const PALETTE = {
@@ -321,6 +366,8 @@ class EffectEngine {
     if (index >= 0 && index < this.effects.length) {
       this.activeIndex = index;
       if (this.active && this.active.onActivate) this.active.onActivate();
+      // Update color UI when switching effects
+      if (window._vjApp && window._vjApp.updateColorUI) window._vjApp.updateColorUI();
     }
   }
 
@@ -370,6 +417,16 @@ class Effect {
   lerp(a, b, t) { return a + (b - a) * t; }
   clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
   hsl(h, s, l, a) { return `hsla(${h},${s}%,${l}%,${a || 1})`; }
+  hexToRgb(hex) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return { r, g, b };
+  }
+  colorStr(hex, alpha) {
+    const c = this.hexToRgb(hex);
+    return `rgba(${c.r},${c.g},${c.b},${alpha})`;
+  }
 }
 
 // ============================================================
@@ -386,7 +443,9 @@ class NeonTracer extends Effect {
     if (!body || !body.landmarks) return;
 
     const intensity = CONFIG.intensity * this.intensity;
-    const audioMult = CONFIG.audioMode === 'manual' ? 0.7 : (0.5 + audio.volume * 1.5);
+    // ENHANCED AUDIO: stronger amplification across all frequencies
+    const audioMult = CONFIG.audioMode === 'manual' ? 0.7 : (0.5 + audio.volume * 2.5);
+    const audioPulse = audio.bass * 3;
     const contour = body.contour || this.getContour(body.landmarks);
 
     if (contour.length < 3) return;
@@ -416,9 +475,9 @@ class NeonTracer extends Effect {
 
       const hue = (trail.hue + i * 5) % 360;
       ctx.strokeStyle = this.hsl(hue, 100, 60, alpha * 0.4);
-      ctx.lineWidth = 2 + audioMult * 3;
+      ctx.lineWidth = 2 + audioMult * 3 + audioPulse * 2;
       ctx.shadowColor = this.hsl(hue, 100, 60, alpha);
-      ctx.shadowBlur = 15 * audioMult;
+      ctx.shadowBlur = 15 * audioMult + audioPulse * 5;
       ctx.stroke();
       ctx.shadowBlur = 0;
     }
@@ -439,16 +498,16 @@ class NeonTracer extends Effect {
 
       const hue = (t * 30) % 360;
       ctx.strokeStyle = this.hsl(hue, 100, 70, intensity);
-      ctx.lineWidth = 3 + audioMult * 4;
+      ctx.lineWidth = 3 + audioMult * 4 + audioPulse * 3;
       ctx.shadowColor = this.hsl(hue, 100, 60, 1);
-      ctx.shadowBlur = 25 * audioMult;
+      ctx.shadowBlur = 25 * audioMult + audioPulse * 10;
       ctx.stroke();
       ctx.shadowBlur = 0;
 
       // Glow pass
       ctx.strokeStyle = this.hsl(hue, 100, 80, intensity * 0.3);
-      ctx.lineWidth = 8 + audioMult * 10;
-      ctx.shadowBlur = 40 * audioMult;
+      ctx.lineWidth = 8 + audioMult * 10 + audioPulse * 5;
+      ctx.shadowBlur = 40 * audioMult + audioPulse * 15;
       ctx.stroke();
       ctx.shadowBlur = 0;
     }
@@ -471,7 +530,8 @@ class GridDistortion extends Effect {
 
   render(ctx, body, audio, w, h) {
     const intensity = CONFIG.intensity * this.intensity;
-    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : (0.3 + audio.bass * 2);
+    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : (0.3 + audio.bass * 2.5);
+    const audioMid = audio.mid * 1.5;
     const gridSize = 40;
     const cols = Math.ceil(w / gridSize) + 1;
     const rows = Math.ceil(h / gridSize) + 1;
@@ -481,7 +541,6 @@ class GridDistortion extends Effect {
     const cy = body ? body.center.y * h : h / 2;
     const bodyRadius = body ? (body.height || 0.5) * h * 0.4 : 100;
 
-    // Draw grid with distortion
     ctx.lineWidth = 1;
 
     // Horizontal lines
@@ -491,12 +550,10 @@ class GridDistortion extends Effect {
         let x = c * gridSize;
         let y = r * gridSize;
 
-        // Perspective warp
         const py = (y / h - 0.5) * 2;
         const perspective = 1 + py * 0.3;
         x = w / 2 + (x - w / 2) * perspective;
 
-        // Body distortion
         if (body && body.landmarks) {
           const dx = x - cx;
           const dy = y - cy;
@@ -509,8 +566,7 @@ class GridDistortion extends Effect {
           }
         }
 
-        // Wave distortion
-        y += Math.sin(x * 0.01 + t * 2) * 5 * audioMult;
+        y += Math.sin(x * 0.01 + t * 2) * 5 * audioMult + audioMid * 15;
 
         if (c === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
@@ -543,7 +599,7 @@ class GridDistortion extends Effect {
           }
         }
 
-        y += Math.sin(x * 0.01 + t * 2) * 5 * audioMult;
+        y += Math.sin(x * 0.01 + t * 2) * 5 * audioMult + audioMid * 15;
 
         if (r === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
@@ -585,14 +641,14 @@ class ParticleBurst extends Effect {
   constructor() {
     super('Particle Burst', 'Partículas', '💥', [PALETTE.magenta, PALETTE.cyan, PALETTE.yellow, PALETTE.green]);
     this.particles = [];
-    this.maxParticles = 500;
+    this.maxParticles = 800; // increased
   }
 
   update(body, audio, dt) {
     if (!body) return;
 
     const intensity = CONFIG.intensity * this.intensity;
-    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : audio.volume;
+    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : audio.volume * 2; // ENHANCED
     const speed = CONFIG.speed;
 
     // Spawn particles from hands
@@ -600,7 +656,7 @@ class ParticleBurst extends Effect {
       for (const side of ['left', 'right']) {
         const hand = body.hands[side];
         if (hand && hand.x > 0 && hand.x < 1) {
-          const count = Math.floor(2 + audioMult * 5 * intensity);
+          const count = Math.floor(3 + audioMult * 8 * intensity); // ENHANCED
           for (let i = 0; i < count; i++) {
             this.spawnParticle(hand.x, hand.y, audioMult, intensity);
           }
@@ -612,8 +668,18 @@ class ParticleBurst extends Effect {
     if (audio.beat) {
       const cx = body.center.x;
       const cy = body.center.y;
-      for (let i = 0; i < 20 * intensity; i++) {
+      for (let i = 0; i < 30 * intensity; i++) { // ENHANCED
         this.spawnParticle(cx, cy, audioMult, intensity, true);
+      }
+    }
+
+    // Spawn from body center continuously (audio-driven)
+    if (audio.volume > 0.3) {
+      const cx = body.center.x;
+      const cy = body.center.y;
+      const spawnCount = Math.floor(audio.volume * 5 * intensity);
+      for (let i = 0; i < spawnCount; i++) {
+        this.spawnParticle(cx + (Math.random() - 0.5) * 0.2, cy + (Math.random() - 0.5) * 0.2, audioMult, intensity);
       }
     }
 
@@ -637,7 +703,7 @@ class ParticleBurst extends Effect {
     if (this.particles.length >= this.maxParticles) return;
 
     const angle = Math.random() * Math.PI * 2;
-    const speed = explosive ? (200 + Math.random() * 400) : (50 + Math.random() * 150 + audioMult * 200);
+    const speed = explosive ? (200 + Math.random() * 500) : (50 + Math.random() * 200 + audioMult * 300); // ENHANCED
     const colorIdx = Math.floor(Math.random() * this.colors.length);
 
     this.particles.push({
@@ -645,9 +711,9 @@ class ParticleBurst extends Effect {
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       gravity: explosive ? 100 : 50,
-      size: 2 + Math.random() * 4 + audioMult * 3,
-      life: 0.5 + Math.random() * 1.5,
-      maxLife: 0.5 + Math.random() * 1.5,
+      size: 2 + Math.random() * 5 + audioMult * 4, // ENHANCED
+      life: 0.5 + Math.random() * 2,
+      maxLife: 0.5 + Math.random() * 2,
       alpha: 1,
       color: this.colors[colorIdx],
     });
@@ -661,17 +727,12 @@ class ParticleBurst extends Effect {
       const py = p.y * h;
       const alpha = p.alpha * intensity;
 
-      ctx.beginPath();
-      ctx.arc(px, py, p.size, 0, Math.PI * 2);
-      ctx.fillStyle = p.color.replace(')', `,${alpha})`).replace('rgb', 'rgba').replace('#', '');
-
-      // Convert hex to rgba
       const r = parseInt(p.color.slice(1, 3), 16);
       const g = parseInt(p.color.slice(3, 5), 16);
       const b = parseInt(p.color.slice(5, 7), 16);
       ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
       ctx.shadowColor = p.color;
-      ctx.shadowBlur = 8;
+      ctx.shadowBlur = 8 + audio.volume * 10;
       ctx.fill();
       ctx.shadowBlur = 0;
 
@@ -701,11 +762,11 @@ class Constellation extends Effect {
     if (!body || !body.landmarks) return;
 
     const intensity = CONFIG.intensity * this.intensity;
-    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : (0.3 + audio.mid * 1.5);
+    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : (0.3 + audio.mid * 2); // ENHANCED
     const t = Date.now() * 0.001;
     const lm = body.landmarks;
 
-    // Key landmark connections (skeleton-like)
+    // Key landmark connections
     const connections = [
       [11, 12], [11, 13], [13, 15], [15, 17], [17, 19], [19, 21],
       [12, 14], [14, 16], [16, 18], [18, 20], [20, 22],
@@ -715,7 +776,6 @@ class Constellation extends Effect {
       [9, 10],
     ];
 
-    // Draw connection lines
     ctx.lineWidth = 1.5;
     for (const [a, b] of connections) {
       if (a >= lm.length || b >= lm.length) continue;
@@ -728,9 +788,9 @@ class Constellation extends Effect {
       ctx.beginPath();
       ctx.moveTo(ax, ay);
       ctx.lineTo(bx, by);
-      ctx.strokeStyle = `rgba(0,240,255,${0.3 * pulse * intensity * audioMult})`;
+      ctx.strokeStyle = `rgba(0,240,255,${0.3 * pulse * intensity * audioMult * 2})`; // ENHANCED
       ctx.shadowColor = PALETTE.cyan;
-      ctx.shadowBlur = 5 * audioMult;
+      ctx.shadowBlur = 5 * audioMult * 2;
       ctx.stroke();
       ctx.shadowBlur = 0;
     }
@@ -742,18 +802,16 @@ class Constellation extends Effect {
       const x = lm[i].x * w;
       const y = lm[i].y * h;
       const twinkle = Math.sin(t * 5 + i * 1.7) * 0.5 + 0.5;
-      const size = (2 + twinkle * 3 + audioMult * 2) * intensity;
+      const size = (2 + twinkle * 3 + audioMult * 4) * intensity; // ENHANCED
 
-      // Outer glow
       ctx.beginPath();
       ctx.arc(x, y, size * 3, 0, Math.PI * 2);
       const grad = ctx.createRadialGradient(x, y, 0, x, y, size * 3);
-      grad.addColorStop(0, `rgba(0,240,255,${0.3 * twinkle * intensity})`);
+      grad.addColorStop(0, `rgba(0,240,255,${0.3 * twinkle * intensity * audioMult})`);
       grad.addColorStop(1, 'rgba(0,240,255,0)');
       ctx.fillStyle = grad;
       ctx.fill();
 
-      // Core
       ctx.beginPath();
       ctx.arc(x, y, size, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(255,255,255,${twinkle * intensity})`;
@@ -764,19 +822,20 @@ class Constellation extends Effect {
     }
 
     // Extra floating particles
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 40; i++) { // more particles
       const seed = i * 137.508;
       const fx = (Math.sin(seed + t * 0.3) * 0.3 + 0.5) * w;
       const fy = (Math.cos(seed * 0.7 + t * 0.2) * 0.3 + 0.5) * h;
       const ft = Math.sin(t * 2 + seed) * 0.5 + 0.5;
 
       ctx.beginPath();
-      ctx.arc(fx, fy, 1 + ft * 2, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255,255,255,${ft * 0.3 * intensity})`;
+      ctx.arc(fx, fy, 1 + ft * 2 + audio.volume * 3, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${ft * 0.3 * intensity * (1 + audio.volume)})`;
       ctx.fill();
     }
   }
 }
+
 
 // ============================================================
 // EFECTO 05: SHOCKWAVE
@@ -785,14 +844,14 @@ class Shockwave extends Effect {
   constructor() {
     super('Shockwave', 'Onda / Energía', '💫', [PALETTE.cyan, PALETTE.magenta]);
     this.waves = [];
-    this.maxWaves = 20;
+    this.maxWaves = 25; // increased
   }
 
   update(body, audio, dt) {
     if (!body) return;
 
     const intensity = CONFIG.intensity * this.intensity;
-    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : audio.volume;
+    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : audio.volume * 2; // ENHANCED
 
     // Spawn waves on beat or fast movement
     if (audio.beat || (body.velocity && Math.abs(body.velocity.x) + Math.abs(body.velocity.y) > 0.02)) {
@@ -801,8 +860,23 @@ class Shockwave extends Effect {
           x: body.center.x,
           y: body.center.y,
           radius: 0,
-          maxRadius: 0.8 + audioMult * 0.3,
-          speed: 0.4 + audioMult * 0.3,
+          maxRadius: 0.8 + audioMult * 0.5,
+          speed: 0.4 + audioMult * 0.4,
+          life: 1,
+          hue: (Date.now() * 0.1) % 360,
+        });
+      }
+    }
+
+    // Continuous audio-driven waves
+    if (audio.bass > 0.4) {
+      if (this.waves.length < this.maxWaves) {
+        this.waves.push({
+          x: body.center.x + (Math.random() - 0.5) * 0.1,
+          y: body.center.y + (Math.random() - 0.5) * 0.1,
+          radius: 0,
+          maxRadius: 0.6 + audio.bass * 0.5,
+          speed: 0.3 + audio.bass * 0.5,
           life: 1,
           hue: (Date.now() * 0.1) % 360,
         });
@@ -828,22 +902,31 @@ class Shockwave extends Effect {
       const alpha = wave.life * intensity;
       const hue = wave.hue;
 
-      // Main ring
+      // Main ring - ENHANCED
       ctx.beginPath();
       ctx.arc(wave.x * w, wave.y * h, r, 0, Math.PI * 2);
-      ctx.strokeStyle = `hsla(${hue},100%,60%,${alpha * 0.6})`;
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = `hsla(${hue},100%,60%,${alpha * 0.8})`;
+      ctx.lineWidth = 3 + audio.volume * 5;
       ctx.shadowColor = `hsla(${hue},100%,60%,${alpha})`;
-      ctx.shadowBlur = 20;
+      ctx.shadowBlur = 20 + audio.volume * 20;
       ctx.stroke();
       ctx.shadowBlur = 0;
 
       // Inner glow ring
       ctx.beginPath();
       ctx.arc(wave.x * w, wave.y * h, r * 0.95, 0, Math.PI * 2);
-      ctx.strokeStyle = `hsla(${hue},100%,80%,${alpha * 0.3})`;
-      ctx.lineWidth = 8;
+      ctx.strokeStyle = `hsla(${hue},100%,80%,${alpha * 0.5})`;
+      ctx.lineWidth = 8 + audio.volume * 6;
       ctx.stroke();
+
+      // Outer ring
+      if (r > 20) {
+        ctx.beginPath();
+        ctx.arc(wave.x * w, wave.y * h, r * 1.05, 0, Math.PI * 2);
+        ctx.strokeStyle = `hsla(${hue},100%,50%,${alpha * 0.2})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
     }
   }
 }
@@ -855,12 +938,12 @@ class PortalVortex extends Effect {
   constructor() {
     super('Portal Vortex', 'Espacio / VR', '🌀', [PALETTE.purple, PALETTE.magenta, PALETTE.cyan]);
     this.stars = [];
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 300; i++) { // more stars
       this.stars.push({
         angle: Math.random() * Math.PI * 2,
         radius: 0.1 + Math.random() * 0.4,
-        speed: 0.2 + Math.random() * 0.8,
-        size: 0.5 + Math.random() * 2,
+        speed: 0.2 + Math.random() * 1,
+        size: 0.5 + Math.random() * 2.5,
         hue: Math.random() * 360,
       });
     }
@@ -868,64 +951,65 @@ class PortalVortex extends Effect {
 
   render(ctx, body, audio, w, h) {
     const intensity = CONFIG.intensity * this.intensity;
-    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : (0.3 + audio.bass * 2);
+    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : (0.3 + audio.bass * 2.5); // ENHANCED
+    const audioTreble = audio.treble * 1.5;
     const t = Date.now() * 0.001 * CONFIG.speed;
 
     const cx = body ? body.center.x * w : w / 2;
     const cy = body ? body.center.y * h : h / 2;
-    const portalRadius = Math.min(w, h) * 0.35 * (0.8 + audioMult * 0.4);
+    const portalRadius = Math.min(w, h) * 0.35 * (0.8 + audioMult * 0.6); // ENHANCED
 
-    // Portal glow background
-    const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, portalRadius * 1.5);
-    bgGrad.addColorStop(0, `rgba(100,20,180,${0.15 * intensity * audioMult})`);
-    bgGrad.addColorStop(0.5, `rgba(60,10,120,${0.08 * intensity * audioMult})`);
+    // Portal glow background - ENHANCED
+    const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, portalRadius * 2);
+    bgGrad.addColorStop(0, `rgba(100,20,180,${0.2 * intensity * audioMult})`);
+    bgGrad.addColorStop(0.5, `rgba(60,10,120,${0.12 * intensity * audioMult})`);
     bgGrad.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, w, h);
 
     // Spiral arms
-    for (let arm = 0; arm < 4; arm++) {
-      const armOffset = (arm / 4) * Math.PI * 2;
+    for (let arm = 0; arm < 6; arm++) { // more arms
+      const armOffset = (arm / 6) * Math.PI * 2;
       ctx.beginPath();
       for (let i = 0; i < 100; i++) {
         const progress = i / 100;
-        const angle = armOffset + progress * Math.PI * 4 + t * 2;
+        const angle = armOffset + progress * Math.PI * 5 + t * (2 + audioMult); // faster with audio
         const r = progress * portalRadius;
         const x = cx + Math.cos(angle) * r;
         const y = cy + Math.sin(angle) * r;
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
-      ctx.strokeStyle = `hsla(${280 + arm * 30},80%,60%,${0.15 * intensity})`;
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = `hsla(${280 + arm * 25},80%,60%,${0.2 * intensity * audioMult})`;
+      ctx.lineWidth = 2 + audioMult;
       ctx.stroke();
     }
 
-    // Orbiting stars
+    // Orbiting stars - ENHANCED
     for (const star of this.stars) {
-      star.angle += star.speed * dt * CONFIG.speed * (1 + audioMult);
+      star.angle += star.speed * dt * CONFIG.speed * (1 + audioMult * 2); // faster
       const r = star.radius * portalRadius;
       const x = cx + Math.cos(star.angle) * r;
       const y = cy + Math.sin(star.angle) * r;
-      const s = star.size * (1 + audioMult * 0.5);
+      const s = star.size * (1 + audioMult * 0.8 + audioTreble * 0.5);
 
       ctx.beginPath();
       ctx.arc(x, y, s, 0, Math.PI * 2);
-      ctx.fillStyle = `hsla(${star.hue},80%,70%,${0.6 * intensity})`;
+      ctx.fillStyle = `hsla(${star.hue},80%,70%,${0.6 * intensity * (1 + audioMult)})`;
       ctx.shadowColor = `hsla(${star.hue},80%,70%,0.8)`;
-      ctx.shadowBlur = 5;
+      ctx.shadowBlur = 5 + audioMult * 10;
       ctx.fill();
       ctx.shadowBlur = 0;
     }
 
-    // Center glow
-    const centerGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, portalRadius * 0.3);
-    centerGrad.addColorStop(0, `rgba(200,100,255,${0.4 * intensity * audioMult})`);
-    centerGrad.addColorStop(0.5, `rgba(100,50,200,${0.2 * intensity * audioMult})`);
+    // Center glow - ENHANCED
+    const centerGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, portalRadius * 0.4);
+    centerGrad.addColorStop(0, `rgba(200,100,255,${0.5 * intensity * audioMult})`);
+    centerGrad.addColorStop(0.5, `rgba(100,50,200,${0.3 * intensity * audioMult})`);
     centerGrad.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = centerGrad;
     ctx.beginPath();
-    ctx.arc(cx, cy, portalRadius * 0.3, 0, Math.PI * 2);
+    ctx.arc(cx, cy, portalRadius * 0.4, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -941,12 +1025,13 @@ class SynthwaveSunset extends Effect {
 
   render(ctx, body, audio, w, h) {
     const intensity = CONFIG.intensity * this.intensity;
-    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : (0.3 + audio.bass * 1.5);
+    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : (0.3 + audio.bass * 2);
+    const audioMid = audio.mid * 1.5;
     const t = Date.now() * 0.001 * CONFIG.speed;
 
     const horizonY = h * 0.55;
     const sunY = body ? body.center.y * h * 0.4 + h * 0.15 : h * 0.35;
-    const sunRadius = 80 + audioMult * 30;
+    const sunRadius = 80 + audioMult * 40 + audioMid * 20; // ENHANCED
 
     // Sky gradient
     const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
@@ -972,9 +1057,10 @@ class SynthwaveSunset extends Effect {
     ctx.fillRect(w / 2 - sunRadius, sunY - sunRadius, sunRadius * 2, sunRadius * 2);
 
     // Horizontal scan lines on sun
-    for (let i = 0; i < 10; i++) {
-      const lineY = sunY - sunRadius + (sunRadius * 2 / 10) * i + Math.sin(t + i) * 3;
-      const gapHeight = 2 + i * 1.5;
+    const lineCount = 8 + Math.floor(audioMult * 6); // audio-driven
+    for (let i = 0; i < lineCount; i++) {
+      const lineY = sunY - sunRadius + (sunRadius * 2 / lineCount) * i + Math.sin(t + i) * 3;
+      const gapHeight = 2 + i * 1.5 + audio.volume * 3;
       ctx.fillStyle = `rgba(10,5,30,${0.6 * intensity})`;
       ctx.fillRect(w / 2 - sunRadius, lineY, sunRadius * 2, gapHeight);
     }
@@ -987,26 +1073,25 @@ class SynthwaveSunset extends Effect {
       const sy = ((Math.cos(seed * 0.7) * 0.5 + 0.5) * horizonY * 0.8);
       const st = Math.sin(t * 2 + seed) * 0.5 + 0.5;
       ctx.beginPath();
-      ctx.arc(sx, sy, 1 + st, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255,255,255,${st * 0.6 * intensity})`;
+      ctx.arc(sx, sy, 1 + st + audio.volume * 2, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${st * 0.6 * intensity * (1 + audio.volume)})`;
       ctx.fill();
     }
 
-    // Ground / retro grid
+    // Ground
     const groundGrad = ctx.createLinearGradient(0, horizonY, 0, h);
     groundGrad.addColorStop(0, `rgba(20,5,40,${intensity})`);
     groundGrad.addColorStop(1, `rgba(5,2,15,${intensity})`);
     ctx.fillStyle = groundGrad;
     ctx.fillRect(0, horizonY, w, h - horizonY);
 
-    // Perspective grid
+    // Perspective grid - ENHANCED
     this.gridOffset = (this.gridOffset + dt * 60 * CONFIG.speed * (1 + audioMult)) % 40;
     ctx.strokeStyle = `rgba(255,0,255,${0.3 * intensity * audioMult})`;
     ctx.lineWidth = 1;
 
-    // Horizontal grid lines
-    for (let i = 0; i < 20; i++) {
-      const progress = (i * 40 + this.gridOffset) / (20 * 40);
+    for (let i = 0; i < 25; i++) { // more lines
+      const progress = (i * 40 + this.gridOffset) / (25 * 40);
       const y = horizonY + Math.pow(progress, 2) * (h - horizonY);
       const alpha = progress * 0.4 * intensity * audioMult;
       ctx.strokeStyle = `rgba(255,0,255,${alpha})`;
@@ -1016,10 +1101,9 @@ class SynthwaveSunset extends Effect {
       ctx.stroke();
     }
 
-    // Vertical grid lines
-    for (let i = -10; i <= 10; i++) {
+    for (let i = -15; i <= 15; i++) { // more vertical lines
       const topX = w / 2 + i * 20;
-      const bottomX = w / 2 + i * 80;
+      const bottomX = w / 2 + i * 100;
       ctx.strokeStyle = `rgba(255,0,255,${0.2 * intensity * audioMult})`;
       ctx.beginPath();
       ctx.moveTo(topX, horizonY);
@@ -1030,12 +1114,13 @@ class SynthwaveSunset extends Effect {
     // Horizon glow
     const glowGrad = ctx.createLinearGradient(0, horizonY - 20, 0, horizonY + 20);
     glowGrad.addColorStop(0, 'rgba(255,0,255,0)');
-    glowGrad.addColorStop(0.5, `rgba(255,0,255,${0.3 * intensity * audioMult})`);
+    glowGrad.addColorStop(0.5, `rgba(255,0,255,${0.4 * intensity * audioMult})`);
     glowGrad.addColorStop(1, 'rgba(255,0,255,0)');
     ctx.fillStyle = glowGrad;
     ctx.fillRect(0, horizonY - 20, w, 40);
   }
 }
+
 
 // ============================================================
 // EFECTO 08: ENERGY FIELD
@@ -1049,11 +1134,12 @@ class EnergyField extends Effect {
     if (!body || !body.landmarks) return;
 
     const intensity = CONFIG.intensity * this.intensity;
-    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : (0.4 + audio.volume * 1.2);
+    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : (0.4 + audio.volume * 2); // ENHANCED
+    const audioBass = audio.bass * 2;
     const t = Date.now() * 0.001;
     const lm = body.landmarks;
 
-    // Energy rays from hands
+    // Energy rays from hands - ENHANCED
     const hands = [lm[15], lm[16]]; // Left and right wrist
     for (const hand of hands) {
       if (!hand || hand.visibility < 0.4) continue;
@@ -1062,9 +1148,10 @@ class EnergyField extends Effect {
       const hy = hand.y * h;
 
       // Multiple rays from each hand
-      for (let i = 0; i < 8; i++) {
-        const angle = (i / 8) * Math.PI * 2 + t * 2;
-        const length = (100 + audioMult * 200) * intensity;
+      const rayCount = 10 + Math.floor(audio.volume * 6); // audio-driven
+      for (let i = 0; i < rayCount; i++) {
+        const angle = (i / rayCount) * Math.PI * 2 + t * 2;
+        const length = (100 + audioMult * 300 + audioBass * 100) * intensity; // ENHANCED
         const wave = Math.sin(t * 5 + i * 1.3) * 0.3 + 0.7;
 
         const ex = hx + Math.cos(angle) * length;
@@ -1080,22 +1167,22 @@ class EnergyField extends Effect {
           const px = hx + (ex - hx) * progress;
           const py = hy + (ey - hy) * progress;
           const offset = Math.sin(t * 8 + s * 2 + i) * 10 * audioMult;
-          const perpX = -(ey - hy) / length * offset;
-          const perpY = (ex - hx) / length * offset;
+          const perpX = -(ey - hy) / (length || 1) * offset;
+          const perpY = (ex - hx) / (length || 1) * offset;
           ctx.lineTo(px + perpX, py + perpY);
         }
 
         const hue = (200 + i * 20 + t * 30) % 360;
-        ctx.strokeStyle = `hsla(${hue},100%,60%,${wave * intensity * audioMult * 0.6})`;
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = `hsla(${hue},100%,60%,${wave * intensity * audioMult * 0.8})`;
+        ctx.lineWidth = 2 + audioMult * 2;
         ctx.shadowColor = `hsla(${hue},100%,60%,${wave * intensity})`;
-        ctx.shadowBlur = 10 * audioMult;
+        ctx.shadowBlur = 10 + audio.volume * 15;
         ctx.stroke();
         ctx.shadowBlur = 0;
       }
     }
 
-    // Body aura
+    // Body aura - ENHANCED
     const contour = this.getContour(lm);
     if (contour.length >= 3) {
       ctx.beginPath();
@@ -1107,9 +1194,9 @@ class EnergyField extends Effect {
       }
       ctx.closePath();
       ctx.strokeStyle = `rgba(64,96,255,${0.3 * intensity * audioMult})`;
-      ctx.lineWidth = 4;
+      ctx.lineWidth = 4 + audioBass * 4;
       ctx.shadowColor = PALETTE.blue;
-      ctx.shadowBlur = 20 * audioMult;
+      ctx.shadowBlur = 20 + audio.volume * 25;
       ctx.stroke();
       ctx.shadowBlur = 0;
     }
@@ -1129,7 +1216,7 @@ class WarpSpeed extends Effect {
   constructor() {
     super('Warp Speed', 'Espacio / VR', '🚀', [PALETTE.white, PALETTE.cyan]);
     this.stars = [];
-    for (let i = 0; i < 300; i++) {
+    for (let i = 0; i < 400; i++) { // more stars
       this.stars.push({
         x: (Math.random() - 0.5) * 2,
         y: (Math.random() - 0.5) * 2,
@@ -1141,8 +1228,10 @@ class WarpSpeed extends Effect {
 
   render(ctx, body, audio, w, h) {
     const intensity = CONFIG.intensity * this.intensity;
-    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : (0.3 + audio.volume * 2);
-    const speed = (0.5 + audioMult * 2) * CONFIG.speed;
+    // ENHANCED AUDIO: much faster warp with audio
+    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : (0.3 + audio.volume * 3);
+    const audioBass = audio.bass * 2;
+    const speed = (0.5 + audioMult * 3 + audioBass * 2) * CONFIG.speed;
 
     const cx = w / 2;
     const cy = h / 2;
@@ -1162,27 +1251,28 @@ class WarpSpeed extends Effect {
 
       const sx = cx + (star.x / star.z) * w * 0.5;
       const sy = cy + (star.y / star.z) * h * 0.5;
-      const size = (1 - star.z) * 3 * intensity;
+      const size = (1 - star.z) * 4 * intensity * (1 + audioMult); // ENHANCED
 
       // Draw streak
       ctx.beginPath();
       ctx.moveTo(star.prevX, star.prevY);
       ctx.lineTo(sx, sy);
-      ctx.strokeStyle = `rgba(255,255,255,${(1 - star.z) * 0.8 * intensity})`;
+      const alpha = (1 - star.z) * 0.9 * intensity * (1 + audio.volume);
+      ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
       ctx.lineWidth = size;
       ctx.stroke();
 
       // Bright point
       ctx.beginPath();
       ctx.arc(sx, sy, size * 0.5, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(200,220,255,${(1 - star.z) * intensity})`;
+      ctx.fillStyle = `rgba(200,220,255,${(1 - star.z) * intensity * (1 + audio.volume * 0.5)})`;
       ctx.fill();
     }
 
-    // Center glow
-    const glowSize = 30 + audioMult * 50;
+    // Center glow - ENHANCED
+    const glowSize = 30 + audioMult * 80 + audioBass * 40;
     const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowSize);
-    grad.addColorStop(0, `rgba(100,200,255,${0.3 * intensity * audioMult})`);
+    grad.addColorStop(0, `rgba(100,200,255,${0.4 * intensity * audioMult})`);
     grad.addColorStop(1, 'rgba(100,200,255,0)');
     ctx.fillStyle = grad;
     ctx.beginPath();
@@ -1202,19 +1292,18 @@ class GlitchBody extends Effect {
 
   update(body, audio, dt) {
     const intensity = CONFIG.intensity * this.intensity;
-    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : audio.treble;
+    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : audio.treble * 2; // ENHANCED
 
-    // Generate glitch lines
     this.glitchLines = [];
-    const count = Math.floor(5 + audioMult * 20);
+    const count = Math.floor(8 + audioMult * 30); // audio-driven more lines
     for (let i = 0; i < count; i++) {
-      if (Math.random() < 0.3 + audioMult * 0.5) {
+      if (Math.random() < 0.3 + audioMult * 0.7) {
         this.glitchLines.push({
           y: Math.random(),
-          height: 0.005 + Math.random() * 0.03,
-          offset: (Math.random() - 0.5) * 0.1 * audioMult,
+          height: 0.005 + Math.random() * 0.04,
+          offset: (Math.random() - 0.5) * 0.15 * audioMult,
           color: Math.random() > 0.5 ? 'red' : 'cyan',
-          alpha: 0.3 + Math.random() * 0.5,
+          alpha: 0.3 + Math.random() * 0.6,
         });
       }
     }
@@ -1224,34 +1313,34 @@ class GlitchBody extends Effect {
     if (!body || !body.landmarks) return;
 
     const intensity = CONFIG.intensity * this.intensity;
-    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : audio.treble;
+    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : audio.treble * 2;
     const t = Date.now() * 0.001;
 
     // Draw body silhouette with RGB split
     const contour = this.getContour(body.landmarks);
     if (contour.length < 3) return;
 
-    // Red channel offset
+    // Red channel offset - ENHANCED
     ctx.save();
     ctx.beginPath();
-    ctx.moveTo(contour[0].x * w + 3 * audioMult, contour[0].y * h);
+    ctx.moveTo(contour[0].x * w + 5 * audioMult, contour[0].y * h);
     for (let i = 1; i < contour.length; i++) {
-      ctx.lineTo(contour[i].x * w + 3 * audioMult, contour[i].y * h);
+      ctx.lineTo(contour[i].x * w + 5 * audioMult, contour[i].y * h);
     }
     ctx.closePath();
-    ctx.fillStyle = `rgba(255,0,64,${0.2 * intensity})`;
+    ctx.fillStyle = `rgba(255,0,64,${0.3 * intensity})`;
     ctx.fill();
     ctx.restore();
 
     // Cyan channel offset
     ctx.save();
     ctx.beginPath();
-    ctx.moveTo(contour[0].x * w - 3 * audioMult, contour[0].y * h);
+    ctx.moveTo(contour[0].x * w - 5 * audioMult, contour[0].y * h);
     for (let i = 1; i < contour.length; i++) {
-      ctx.lineTo(contour[i].x * w - 3 * audioMult, contour[i].y * h);
+      ctx.lineTo(contour[i].x * w - 5 * audioMult, contour[i].y * h);
     }
     ctx.closePath();
-    ctx.fillStyle = `rgba(0,240,255,${0.2 * intensity})`;
+    ctx.fillStyle = `rgba(0,240,255,${0.3 * intensity})`;
     ctx.fill();
     ctx.restore();
 
@@ -1284,14 +1373,14 @@ class GlitchBody extends Effect {
       ctx.fillRect(0, y, w, 1);
     }
 
-    // Random block glitches
-    if (audio.beat || Math.random() < audioMult * 0.3) {
-      for (let i = 0; i < 5; i++) {
+    // Random block glitches - ENHANCED
+    if (audio.beat || Math.random() < audioMult * 0.5) {
+      for (let i = 0; i < 8; i++) {
         const gx = Math.random() * w;
         const gy = Math.random() * h;
-        const gw = 20 + Math.random() * 80;
-        const gh = 5 + Math.random() * 15;
-        ctx.fillStyle = `rgba(0,240,255,${0.1 * intensity})`;
+        const gw = 20 + Math.random() * 100;
+        const gh = 5 + Math.random() * 20;
+        ctx.fillStyle = `rgba(0,240,255,${0.15 * intensity})`;
         ctx.fillRect(gx, gy, gw, gh);
       }
     }
@@ -1303,6 +1392,7 @@ class GlitchBody extends Effect {
       .map(i => ({ x: lm[i].x, y: lm[i].y }));
   }
 }
+
 
 // ============================================================
 // DETECTOR DE CUERPO (MediaPipe Pose)
@@ -1361,8 +1451,8 @@ class BodyDetector {
     const dt = (now - this.prevTime) / 1000;
     this.prevTime = now;
 
-    // Center of body (average of key landmarks)
-    const keyIndices = [11, 12, 23, 24, 0]; // Shoulders + hips + nose
+    // Center of body
+    const keyIndices = [11, 12, 23, 24, 0];
     let sumX = 0, sumY = 0, count = 0;
     for (const i of keyIndices) {
       if (lm[i] && lm[i].visibility > 0.5) {
@@ -1383,7 +1473,7 @@ class BodyDetector {
     }
     this.prevCenter = { ...center };
 
-    // Height (head to feet)
+    // Height
     const head = lm[0];
     const feet = lm[32] || lm[30] || lm[28];
     let height = 0.5;
@@ -1400,7 +1490,7 @@ class BodyDetector {
       hands.right = { x: lm[20].x, y: lm[20].y };
     }
 
-    // Aperture (distance between hands)
+    // Aperture
     let aperture = 0;
     if (hands.left && hands.right) {
       aperture = Math.sqrt(
@@ -1451,7 +1541,7 @@ class AudioAnalyzer {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
       this.analyser = this.ctx.createAnalyser();
       this.analyser.fftSize = 2048;
-      this.analyser.smoothingTimeConstant = 0.8;
+      this.analyser.smoothingTimeConstant = 0.75; // more responsive
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       this.source = this.ctx.createMediaStreamSource(stream);
@@ -1514,7 +1604,6 @@ class AudioAnalyzer {
       if (this.beatHistory.length > 12) this.beatHistory.shift();
       this.lastBeatTime = now;
 
-      // BPM estimation
       if (this.beatHistory.length >= 4) {
         let totalInterval = 0;
         for (let i = 1; i < this.beatHistory.length; i++) {
@@ -1539,6 +1628,7 @@ class AudioAnalyzer {
     }
   }
 }
+
 
 // ============================================================
 // APLICACIÓN PRINCIPAL
@@ -1582,6 +1672,7 @@ class VJProcessor {
   }
 
   buildUI() {
+    // Effect grid
     const grid = document.getElementById('effectGrid');
     grid.innerHTML = '';
     this.engine.effects.forEach((effect, i) => {
@@ -1607,6 +1698,7 @@ class VJProcessor {
     }
 
     this.updateInfoPanel();
+    this.updateColorUI();
   }
 
   updateActiveThumb() {
@@ -1643,65 +1735,205 @@ class VJProcessor {
     });
   }
 
-  setupEventListeners() {
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
-      const key = e.key;
+  // ============================================================
+  // COLOR EDITOR
+  // ============================================================
+  updateColorUI() {
+    const area = document.getElementById('colorEditArea');
+    area.innerHTML = '';
+    const effect = this.engine.active;
 
-      if (key >= '1' && key <= '9') {
-        const idx = parseInt(key) - 1;
-        if (idx < this.engine.effects.length) {
-          this.engine.setEffect(idx);
-          this.updateActiveThumb();
+    effect.colors.forEach((color, idx) => {
+      const row = document.createElement('div');
+      row.className = 'color-edit-row';
+      row.innerHTML = `
+        <input type="color" value="${color}" data-idx="${idx}">
+        <span class="color-hex">${color}</span>
+        <button class="btn-remove" data-idx="${idx}">✕</button>
+      `;
+      area.appendChild(row);
+
+      const input = row.querySelector('input[type=color]');
+      input.addEventListener('input', (e) => {
+        const hex = e.target.value;
+        effect.colors[idx] = hex;
+        row.querySelector('.color-hex').textContent = hex;
+        this.updateInfoPanel();
+      });
+
+      const btn = row.querySelector('.btn-remove');
+      btn.addEventListener('click', () => {
+        if (effect.colors.length > 1) {
+          effect.colors.splice(idx, 1);
+          this.updateColorUI();
           this.updateInfoPanel();
         }
-      } else if (key === 'ArrowRight') {
-        this.engine.next();
-        this.updateActiveThumb();
-        this.updateInfoPanel();
-      } else if (key === 'ArrowLeft') {
-        this.engine.prev();
-        this.updateActiveThumb();
-        this.updateInfoPanel();
-      } else if (key === 'F11') {
-        e.preventDefault();
-        toggleFullscreen();
-      } else if (key === 'Escape') {
-        if (document.fullscreenElement) document.exitFullscreen();
-        document.getElementById('app').classList.remove('fullscreen');
-      } else if (key === ' ') {
-        e.preventDefault();
-        CONFIG.paused = !CONFIG.paused;
-      } else if (key === 'm' || key === 'M') {
-        this.audio.toggle();
-      } else if (key === 'c' || key === 'C') {
-        CONFIG.showLandmarks = !CONFIG.showLandmarks;
-      } else if (key === 'f' || key === 'F') {
-        CONFIG.mirrored = !CONFIG.mirrored;
-      } else if (key === '?' || key === '/') {
-        toggleShortcuts();
-      } else if (key === '+' || key === '=') {
-        CONFIG.intensity = Math.min(1, CONFIG.intensity + 0.1);
-        document.getElementById('sliderIntensity').value = CONFIG.intensity * 100;
-        document.getElementById('valIntensity').textContent = Math.round(CONFIG.intensity * 100) + '%';
-      } else if (key === '-') {
-        CONFIG.intensity = Math.max(0, CONFIG.intensity - 0.1);
-        document.getElementById('sliderIntensity').value = CONFIG.intensity * 100;
-        document.getElementById('valIntensity').textContent = Math.round(CONFIG.intensity * 100) + '%';
-      }
+      });
     });
-
-    // Video input
-    document.getElementById('videoInput').addEventListener('change', (e) => loadVideo(e));
-
-    // Canvas resize
-    const resizeObserver = new ResizeObserver(() => this.resizeCanvas());
-    resizeObserver.observe(document.getElementById('canvasContainer'));
   }
 
-  resizeCanvas() {
-    const container = document.getElementById('canvasContainer');
-    // Keep canvas at fixed resolution, CSS scales it
+  addColorToActive() {
+    const effect = this.engine.active;
+    // Pick a random new color
+    const hue = Math.random() * 360;
+    const hex = `#${Math.floor(Math.random()*255).toString(16).padStart(2,'0')}${Math.floor(Math.random()*255).toString(16).padStart(2,'0')}${Math.floor(Math.random()*255).toString(16).padStart(2,'0')}`;
+    effect.colors.push(hex);
+    this.updateColorUI();
+    this.updateInfoPanel();
+  }
+
+  // ============================================================
+  // BACKGROUND MODE
+  // ============================================================
+  updateBgUI() {
+    const uploadBtn = document.getElementById('btnUploadBg');
+    if (CONFIG.bgMode === 'video' || CONFIG.bgMode === 'image') {
+      uploadBtn.style.display = 'block';
+    } else {
+      uploadBtn.style.display = 'none';
+    }
+  }
+
+  startLoop() {
+    const loop = (timestamp) => {
+      const dt = Math.min((timestamp - this.lastFrameTime) / 1000, 0.1);
+      this.lastFrameTime = timestamp;
+
+      // FPS counter
+      this.frameCount++;
+      this.fpsTimer += dt;
+      if (this.fpsTimer >= 0.5) {
+        this.fps = Math.round(this.frameCount / this.fpsTimer);
+        this.frameCount = 0;
+        this.fpsTimer = 0;
+        const fpsBadge = document.getElementById('fpsBadge');
+        fpsBadge.textContent = `${this.fps} FPS`;
+        fpsBadge.classList.toggle('low', this.fps < 30);
+      }
+
+      // Audio update
+      const audioData = this.audio.update();
+
+      // Update audio bars
+      this.updateAudioBars(audioData);
+
+      // Update audio values display
+      document.getElementById('valBass').textContent = audioData.bass.toFixed(2);
+      document.getElementById('valMid').textContent = audioData.mid.toFixed(2);
+      document.getElementById('valTreble').textContent = audioData.treble.toFixed(2);
+      document.getElementById('valVolume').textContent = audioData.volume.toFixed(2);
+      document.getElementById('valBpm').textContent = audioData.bpm > 0 ? audioData.bpm : '--';
+
+      // Render
+      if (!CONFIG.paused) {
+        const ctx = this.canvas.getContext('2d');
+
+        // Draw background based on mode
+        this.drawBackground(ctx);
+
+        // Apply effect
+        this.engine.render(this.bodyData, audioData, dt);
+
+        // Draw landmarks overlay
+        if (CONFIG.showLandmarks && this.bodyData.landmarks) {
+          this.drawLandmarks(ctx);
+        }
+      }
+
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }
+
+  drawBackground(ctx) {
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    if (CONFIG.bgMode === 'black') {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, w, h);
+      return;
+    }
+
+    if (CONFIG.bgMode === 'webcam') {
+      const video = document.getElementById('webcamVideo');
+      if (video.readyState >= 2) {
+        ctx.save();
+        if (CONFIG.mirrored) {
+          ctx.translate(w, 0);
+          ctx.scale(-1, 1);
+        }
+        ctx.globalAlpha = CONFIG.cameraOpacity;
+        ctx.drawImage(video, 0, 0, w, h);
+        ctx.globalAlpha = 1;
+        ctx.restore();
+      }
+    } else if (CONFIG.bgMode === 'video') {
+      const video = document.getElementById('webcamVideo');
+      if (video.readyState >= 2) {
+        ctx.save();
+        if (CONFIG.mirrored) {
+          ctx.translate(w, 0);
+          ctx.scale(-1, 1);
+        }
+        ctx.globalAlpha = CONFIG.cameraOpacity;
+        ctx.drawImage(video, 0, 0, w, h);
+        ctx.globalAlpha = 1;
+        ctx.restore();
+      }
+    } else if (CONFIG.bgMode === 'image') {
+      if (this._bgImage) {
+        ctx.save();
+        // Cover fit
+        const imgRatio = this._bgImage.width / this._bgImage.height;
+        const canvasRatio = w / h;
+        let sx, sy, sw, sh;
+        if (imgRatio > canvasRatio) {
+          sh = this._bgImage.height;
+          sw = sh * canvasRatio;
+          sx = (this._bgImage.width - sw) / 2;
+          sy = 0;
+        } else {
+          sw = this._bgImage.width;
+          sh = sw / canvasRatio;
+          sx = 0;
+          sy = (this._bgImage.height - sh) / 2;
+        }
+        ctx.globalAlpha = CONFIG.cameraOpacity;
+        ctx.drawImage(this._bgImage, sx, sy, sw, sh, 0, 0, w, h);
+        ctx.globalAlpha = 1;
+        ctx.restore();
+      }
+    }
+  }
+
+  drawLandmarks(ctx) {
+    const lm = this.bodyData.landmarks;
+    if (!lm) return;
+
+    ctx.fillStyle = PALETTE.cyan;
+    for (let i = 0; i < lm.length; i++) {
+      if (lm[i].visibility < 0.4) continue;
+      const x = lm[i].x * this.canvas.width;
+      const y = lm[i].y * this.canvas.height;
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  updateAudioBars(audioData) {
+    if (!this.audio.active || !this.audio.dataArray) return;
+    const bars = document.querySelectorAll('.audio-bar');
+    const data = this.audio.dataArray;
+    const step = Math.floor(data.length / bars.length);
+
+    bars.forEach((bar, i) => {
+      const value = data[i * step] || 0;
+      const height = Math.max(2, (value / 255) * 60);
+      bar.style.height = `${height}px`;
+    });
   }
 
   async startWebcam() {
@@ -1749,97 +1981,8 @@ class VJProcessor {
       document.getElementById('infoAperture').textContent = '--';
     }
   }
-
-  startLoop() {
-    const loop = (timestamp) => {
-      const dt = Math.min((timestamp - this.lastFrameTime) / 1000, 0.1);
-      this.lastFrameTime = timestamp;
-
-      // FPS counter
-      this.frameCount++;
-      this.fpsTimer += dt;
-      if (this.fpsTimer >= 0.5) {
-        this.fps = Math.round(this.frameCount / this.fpsTimer);
-        this.frameCount = 0;
-        this.fpsTimer = 0;
-        const fpsBadge = document.getElementById('fpsBadge');
-        fpsBadge.textContent = `${this.fps} FPS`;
-        fpsBadge.classList.toggle('low', this.fps < 30);
-      }
-
-      // Audio update
-      const audioData = this.audio.update();
-
-      // Update audio bars
-      this.updateAudioBars(audioData);
-
-      // Update audio values display
-      document.getElementById('valBass').textContent = audioData.bass.toFixed(2);
-      document.getElementById('valMid').textContent = audioData.mid.toFixed(2);
-      document.getElementById('valTreble').textContent = audioData.treble.toFixed(2);
-      document.getElementById('valVolume').textContent = audioData.volume.toFixed(2);
-      document.getElementById('valBpm').textContent = audioData.bpm > 0 ? audioData.bpm : '--';
-
-      // Render
-      if (!CONFIG.paused) {
-        // Draw video frame as background
-        const video = document.getElementById('webcamVideo');
-        if (video.readyState >= 2) {
-          const ctx = this.canvas.getContext('2d');
-          ctx.save();
-
-          if (CONFIG.mirrored) {
-            ctx.translate(this.canvas.width, 0);
-            ctx.scale(-1, 1);
-          }
-
-          ctx.globalAlpha = CONFIG.cameraOpacity;
-          ctx.drawImage(video, 0, 0, this.canvas.width, this.canvas.height);
-          ctx.globalAlpha = 1;
-          ctx.restore();
-        }
-
-        this.engine.render(this.bodyData, audioData, dt);
-
-        // Draw landmarks overlay
-        if (CONFIG.showLandmarks && this.bodyData.landmarks) {
-          this.drawLandmarks(this.canvas.getContext('2d'));
-        }
-      }
-
-      requestAnimationFrame(loop);
-    };
-    requestAnimationFrame(loop);
-  }
-
-  drawLandmarks(ctx) {
-    const lm = this.bodyData.landmarks;
-    if (!lm) return;
-
-    ctx.fillStyle = PALETTE.cyan;
-    for (let i = 0; i < lm.length; i++) {
-      if (lm[i].visibility < 0.4) continue;
-      const x = lm[i].x * this.canvas.width;
-      const y = lm[i].y * this.canvas.height;
-      ctx.beginPath();
-      ctx.arc(x, y, 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  updateAudioBars(audioData) {
-    if (!this.audio.active || !this.audio.dataArray) return;
-    const bars = document.querySelectorAll('.audio-bar');
-    const data = this.audio.dataArray;
-    const step = Math.floor(data.length / bars.length);
-
-    bars.forEach((bar, i) => {
-      const value = data[i * step] || 0;
-      const height = Math.max(2, (value / 255) * 60);
-      bar.style.height = `${height}px`;
-    });
-  }
 }
+
 
 // ============================================================
 // FUNCIONES GLOBALES
@@ -1849,9 +1992,19 @@ let app;
 function toggleFullscreen() {
   const el = document.getElementById('app');
   if (!document.fullscreenElement) {
-    el.requestFullscreen().then(() => el.classList.add('fullscreen')).catch(() => {});
+    el.requestFullscreen().then(() => {
+      el.classList.add('fullscreen');
+      // Also hide webcam video element in fullscreen
+      const wc = document.getElementById('webcamVideo');
+      if (wc) wc.style.display = 'none';
+    }).catch(() => {});
   } else {
-    document.exitFullscreen().then(() => el.classList.remove('fullscreen')).catch(() => {});
+    document.exitFullscreen().then(() => {
+      el.classList.remove('fullscreen');
+      // Show webcam again
+      const wc = document.getElementById('webcamVideo');
+      if (wc) wc.style.display = 'block';
+    }).catch(() => {});
   }
 }
 
@@ -1890,6 +2043,20 @@ function toggleWebcamPreview() {
   mini.style.display = mini.style.display === 'none' ? 'block' : 'none';
 }
 
+function setBgMode(mode) {
+  CONFIG.bgMode = mode;
+  document.querySelectorAll('.bg-mode-pill').forEach(p => {
+    p.classList.toggle('active', p.dataset.bg === mode);
+  });
+  if (app) {
+    app.updateBgUI();
+    // If switching to webcam mode, restart webcam
+    if (mode === 'webcam' && app) {
+      app.updateBgUI();
+    }
+  }
+}
+
 function loadVideo(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -1901,10 +2068,62 @@ function loadVideo(event) {
   video.loop = true;
   video.play();
 
+  CONFIG.bgMode = 'video';
+  document.querySelectorAll('.bg-mode-pill').forEach(p => {
+    p.classList.toggle('active', p.dataset.bg === 'video');
+  });
+
   document.getElementById('noDetection').classList.add('hidden');
   document.getElementById('btnWebcam').classList.remove('active');
   document.getElementById('btnVideo').classList.add('active');
   document.getElementById('videoOverlay').textContent = `📁 ${file.name}`;
+}
+
+function loadBackground(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const isVideo = file.type && file.type.startsWith('video/');
+  const isImage = file.type && file.type.startsWith('image/');
+
+  if (isVideo) {
+    // Load as video background
+    const video = document.getElementById('webcamVideo');
+    video.srcObject = null;
+    video.src = URL.createObjectURL(file);
+    video.style.display = 'block';
+    video.loop = true;
+    video.muted = true;
+    video.play();
+
+    CONFIG.bgMode = 'video';
+    document.querySelectorAll('.bg-mode-pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.bg === 'video');
+    });
+    document.getElementById('videoOverlay').textContent = `📁 ${file.name}`;
+  } else if (isImage) {
+    // Load as image background
+    const img = new Image();
+    img.onload = () => {
+      if (app) {
+        app._bgImage = img;
+      }
+    };
+    img.src = URL.createObjectURL(file);
+
+    CONFIG.bgMode = 'image';
+    document.querySelectorAll('.bg-mode-pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.bg === 'image');
+    });
+    document.getElementById('videoOverlay').textContent = `🖼️ ${file.name}`;
+  }
+
+  document.getElementById('noDetection').classList.add('hidden');
+  document.getElementById('btnWebcam').classList.remove('active');
+}
+
+function addColorToActive() {
+  if (app) app.addColorToActive();
 }
 
 // ============================================================
@@ -1912,6 +2131,7 @@ function loadVideo(event) {
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
   app = new VJProcessor();
+  window._vjApp = app; // for global access
 });
 </script>
 </body>
