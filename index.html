@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>⚡ BLONDE VOULAIN — VJ Processor</title>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -135,6 +135,29 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   .effect-thumb .label{font-size:6px}
   .slider-row label{min-width:45px;font-size:9px}
 }
+/* Bloom post-processing */
+#vjCanvas{filter:drop-shadow(0 0 8px rgba(0,240,255,0.15)) saturate(1.1)}
+.app.fullscreen #vjCanvas{filter:drop-shadow(0 0 12px rgba(0,240,255,0.2)) saturate(1.15) contrast(1.05)}
+/* REC button */
+.btn-rec{background:rgba(255,0,64,0.15);border-color:rgba(255,0,64,0.4);color:var(--neon-red);font-weight:700}
+.btn-rec:hover{border-color:var(--neon-red);box-shadow:0 0 20px rgba(255,0,64,0.4)}
+.btn-rec.recording{background:var(--neon-red);color:#fff;animation:pulse-rec 1s ease-in-out infinite}
+@keyframes pulse-rec{0%,100%{box-shadow:0 0 5px rgba(255,0,64,0.5)}50%{box-shadow:0 0 25px rgba(255,0,64,0.8)}}
+/* Snapshot button */
+.btn-snapshot{background:rgba(0,255,65,0.1);border-color:rgba(0,255,65,0.3);color:var(--neon-green)}
+.btn-snapshot:hover{border-color:var(--neon-green);box-shadow:0 0 15px rgba(0,255,65,0.3)}
+/* Transition overlay */
+.transition-overlay{position:absolute;inset:0;background:var(--bg);z-index:50;pointer-events:none;opacity:0;transition:opacity .25s ease}
+.transition-overlay.active{opacity:1}
+/* Toast notification */
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--panel-bg);border:1px solid var(--neon-cyan);border-radius:8px;padding:10px 20px;font-size:12px;color:var(--neon-cyan);z-index:500;opacity:0;transition:all .3s ease;backdrop-filter:blur(8px);box-shadow:0 0 30px rgba(0,240,255,0.2)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* Circular audio visualizer */
+.audio-circular{width:120px;height:120px;margin:0 auto;position:relative}
+.audio-circular canvas{width:100%;height:100%}
+/* Recording timer */
+.rec-timer{font-size:11px;font-family:monospace;color:var(--neon-red);padding:2px 8px;border-radius:4px;background:rgba(255,0,64,0.1);display:none}
+.rec-timer.show{display:block}
 </style>
 </head>
 <body>
@@ -159,6 +182,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="shortcut-row"><span class="shortcut-key">F</span><span class="shortcut-desc">Alternar espejo webcam</span></div>
     <div class="shortcut-row"><span class="shortcut-key">+ -</span><span class="shortcut-desc">Intensidad del efecto</span></div>
     <div class="shortcut-row"><span class="shortcut-key">?</span><span class="shortcut-desc">Mostrar / ocultar atajos</span></div>
+    <div class="shortcut-row"><span class="shortcut-key">R</span><span class="shortcut-desc">Grabar sesión (WebM)</span></div>
+    <div class="shortcut-row"><span class="shortcut-key">S</span><span class="shortcut-desc">Snapshot (PNG)</span></div>
     <div style="margin-top:12px;text-align:center"><button class="btn" onclick="toggleShortcuts()">Cerrar</button></div>
   </div>
 </div>
@@ -170,6 +195,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="header-right">
       <div class="detection-badge off" id="detectionBadge">● DETECCIÓN OFF</div>
       <div class="fps-badge" id="fpsBadge">-- FPS</div>
+      <div class="rec-timer" id="recTimer">● 00:00</div>
+      <button class="btn btn-rec" id="btnRec" onclick="toggleRecording()">🔴 REC</button>
+      <button class="btn btn-snapshot" id="btnSnapshot" onclick="takeSnapshot()">📸</button>
       <button class="btn" id="btnFullscreen" onclick="toggleFullscreen()">⛶ Fullscreen</button>
       <button class="btn" id="btnShortcuts" onclick="toggleShortcuts()">⌨️</button>
     </div>
@@ -269,6 +297,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <div class="text">Activa la webcam o sube un vídeo/foto</div>
     </div>
     <div class="video-overlay" id="videoOverlay"></div>
+    <div class="transition-overlay" id="transitionOverlay"></div>
   </div>
 
   <!-- Right Panel -->
@@ -301,7 +330,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   <div class="bottom-bar">
     <div class="input-group">
       <button class="btn active" id="btnWebcam" onclick="startWebcam()">📷 Webcam</button>
-      <button class="btn" id="btnVideo" onclick="document.getElementById('videoInput').click()">📁 Vídeo</button>
+      <button class="btn" id="btnVideo" onclick="document.getElementById('imageInput').click()">📁 Vídeo</button>
       <button class="btn" id="btnMic" onclick="toggleMic()">🎤 Mic OFF</button>
       <video class="webcam-mini" id="webcamMini" autoplay playsinline muted onclick="toggleWebcamPreview()"></video>
     </div>
@@ -310,6 +339,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   </div>
 </div>
 
+<div class="toast" id="toast"></div>
 
 <script>
 // ============================================================
@@ -412,7 +442,12 @@ class Effect {
   }
   init(canvas, ctx) {}
   onActivate() {}
-  update(body, audio, dt) { this._lastBody = body; }
+  update(body, audio, dt) { this._lastBody = body; this._dt = dt || 0.016; }
+  getContour(lm) {
+    const indices = [11,12,24,23,25,26,27,28,29,30,31,32,30,28,26,24,12,24,23,11,13,15,17,19,21,19,17,15,13,11];
+    return indices.filter(i => i < lm.length && lm[i].visibility > 0.5)
+      .map(i => ({ x: lm[i].x, y: lm[i].y }));
+  }
   render(ctx, body, audio, w, h) {}
   lerp(a, b, t) { return a + (b - a) * t; }
   clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -513,11 +548,6 @@ class NeonTracer extends Effect {
     }
   }
 
-  getContour(lm) {
-    const indices = [11,12,24,23,25,26,27,28,29,30,31,32,30,28,26,24,12,24,23,11,13,15,17,19,21,19,17,15,13,11];
-    return indices.filter(i => i < lm.length && lm[i].visibility > 0.5)
-      .map(i => ({ x: lm[i].x, y: lm[i].y }));
-  }
 }
 
 // ============================================================
@@ -987,7 +1017,7 @@ class PortalVortex extends Effect {
 
     // Orbiting stars - ENHANCED
     for (const star of this.stars) {
-      star.angle += star.speed * dt * CONFIG.speed * (1 + audioMult * 2); // faster
+      star.angle += star.speed * (this._dt || 0.016) * CONFIG.speed * (1 + audioMult * 2); // faster
       const r = star.radius * portalRadius;
       const x = cx + Math.cos(star.angle) * r;
       const y = cy + Math.sin(star.angle) * r;
@@ -1086,7 +1116,7 @@ class SynthwaveSunset extends Effect {
     ctx.fillRect(0, horizonY, w, h - horizonY);
 
     // Perspective grid - ENHANCED
-    this.gridOffset = (this.gridOffset + dt * 60 * CONFIG.speed * (1 + audioMult)) % 40;
+    this.gridOffset = (this.gridOffset + (this._dt || 0.016) * 60 * CONFIG.speed * (1 + audioMult)) % 40;
     ctx.strokeStyle = `rgba(255,0,255,${0.3 * intensity * audioMult})`;
     ctx.lineWidth = 1;
 
@@ -1202,11 +1232,6 @@ class EnergyField extends Effect {
     }
   }
 
-  getContour(lm) {
-    const indices = [11,12,24,23,25,26,27,28,29,30,31,32,30,28,26,24,12,24,23,11,13,15,17,19,21,19,17,15,13,11];
-    return indices.filter(i => i < lm.length && lm[i].visibility > 0.5)
-      .map(i => ({ x: lm[i].x, y: lm[i].y }));
-  }
 }
 
 // ============================================================
@@ -1386,10 +1411,474 @@ class GlitchBody extends Effect {
     }
   }
 
-  getContour(lm) {
-    const indices = [11,12,24,23,25,26,27,28,29,30,31,32,30,28,26,24,12,24,23,11,13,15,17,19,21,19,17,15,13,11];
-    return indices.filter(i => i < lm.length && lm[i].visibility > 0.5)
-      .map(i => ({ x: lm[i].x, y: lm[i].y }));
+}
+
+
+// ============================================================
+// EFECTO 11: LIQUID METAL
+// ============================================================
+class LiquidMetal extends Effect {
+  constructor() {
+    super('Liquid Metal', 'Luz Neón', '🤖', [PALETTE.cyan, PALETTE.white, PALETTE.purple]);
+    this.drops = [];
+  }
+
+  update(body, audio, dt) {
+    super.update(body, audio, dt);
+    if (!body || !body.landmarks) return;
+    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : audio.bass * 2;
+    // Spawn liquid drops along contour
+    if (body.contour && body.contour.length > 3 && Math.random() < 0.3 + audioMult * 0.5) {
+      const idx = Math.floor(Math.random() * body.contour.length);
+      const p = body.contour[idx];
+      this.drops.push({ x: p.x, y: p.y, vy: 0.001 + Math.random() * 0.003, life: 1, size: 2 + Math.random() * 4 });
+    }
+    // Update drops
+    for (let i = this.drops.length - 1; i >= 0; i--) {
+      const d = this.drops[i];
+      d.y += d.vy * (dt || 0.016) * 60;
+      d.life -= (dt || 0.016) * 0.5;
+      if (d.life <= 0) this.drops.splice(i, 1);
+    }
+  }
+
+  render(ctx, body, audio, w, h) {
+    if (!body || !body.landmarks) return;
+    const intensity = CONFIG.intensity * this.intensity;
+    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : (0.4 + audio.bass * 2);
+    const t = Date.now() * 0.001;
+    const contour = body.contour || this.getContour(body.landmarks);
+    if (contour.length < 3) return;
+
+    // Metallic body fill with gradient wave
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(contour[0].x * w, contour[0].y * h);
+    for (let i = 1; i < contour.length; i++) {
+      const wave = Math.sin(t * 4 + i * 0.3) * 3 * audioMult;
+      ctx.lineTo(contour[i].x * w + wave, contour[i].y * h + wave);
+    }
+    ctx.closePath();
+
+    // Chrome gradient
+    const grad = ctx.createLinearGradient(0, 0, w, h);
+    const shift = (t * 50) % 360;
+    grad.addColorStop(0, `hsla(${shift}, 30%, 80%, ${0.4 * intensity})`);
+    grad.addColorStop(0.3, `hsla(${shift + 60}, 50%, 95%, ${0.5 * intensity})`);
+    grad.addColorStop(0.5, `hsla(${shift + 120}, 30%, 60%, ${0.4 * intensity})`);
+    grad.addColorStop(0.7, `hsla(${shift + 180}, 50%, 90%, ${0.5 * intensity})`);
+    grad.addColorStop(1, `hsla(${shift + 240}, 30%, 70%, ${0.4 * intensity})`);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Bright outline
+    ctx.strokeStyle = `rgba(255,255,255,${0.6 * intensity})`;
+    ctx.lineWidth = 2 + audioMult * 2;
+    ctx.shadowColor = PALETTE.cyan;
+    ctx.shadowBlur = 15 + audioMult * 20;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    // Liquid drops
+    for (const d of this.drops) {
+      const dx = d.x * w;
+      const dy = d.y * h;
+      const alpha = d.life * intensity;
+      ctx.beginPath();
+      ctx.arc(dx, dy, d.size * (1 + audioMult * 0.5), 0, Math.PI * 2);
+      const dgrad = ctx.createRadialGradient(dx, dy, 0, dx, dy, d.size * 2);
+      dgrad.addColorStop(0, `rgba(255,255,255,${alpha})`);
+      dgrad.addColorStop(0.5, `rgba(0,240,255,${alpha * 0.6})`);
+      dgrad.addColorStop(1, 'rgba(0,240,255,0)');
+      ctx.fillStyle = dgrad;
+      ctx.fill();
+    }
+
+    // Shine sweep
+    const sweepX = ((t * 0.3) % 1) * w;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(contour[0].x * w, contour[0].y * h);
+    for (let i = 1; i < contour.length; i++) {
+      ctx.lineTo(contour[i].x * w, contour[i].y * h);
+    }
+    ctx.closePath();
+    ctx.clip();
+    const sweepGrad = ctx.createLinearGradient(sweepX - 80, 0, sweepX + 80, 0);
+    sweepGrad.addColorStop(0, 'rgba(255,255,255,0)');
+    sweepGrad.addColorStop(0.5, `rgba(255,255,255,${0.3 * intensity})`);
+    sweepGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sweepGrad;
+    ctx.fillRect(sweepX - 80, 0, 160, h);
+    ctx.restore();
+  }
+}
+
+// ============================================================
+// EFECTO 12: DNA HELIX
+// ============================================================
+class DNAHelix extends Effect {
+  constructor() {
+    super('DNA Helix', 'Partículas', '🧬', [PALETTE.green, PALETTE.cyan, PALETTE.magenta]);
+  }
+
+  render(ctx, body, audio, w, h) {
+    if (!body || !body.landmarks) return;
+    const intensity = CONFIG.intensity * this.intensity;
+    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : (0.3 + audio.mid * 2.5);
+    const t = Date.now() * 0.001 * CONFIG.speed;
+    const lm = body.landmarks;
+
+    // Spine from head to feet
+    const head = lm[0];
+    const footL = lm[31] || lm[27];
+    const footR = lm[32] || lm[28];
+    if (!head || !footL || !footR) return;
+    if (head.visibility < 0.3) return;
+
+    const spineX = (head.x + (footL.x + footR.x) / 2) / 2;
+    const spineY1 = head.y;
+    const spineY2 = (footL.y + footR.y) / 2;
+    const spineLen = Math.abs(spineY2 - spineY1);
+    if (spineLen < 0.1) return;
+
+    const segments = 60;
+    const helixRadius = 0.06 + audioMult * 0.04;
+    const twists = 4 + audioMult * 2;
+
+    // Draw double helix
+    for (let i = 0; i <= segments; i++) {
+      const progress = i / segments;
+      const y = spineY1 + (spineY2 - spineY1) * progress;
+      const angle = progress * Math.PI * twists + t * 3;
+      const x1 = spineX + Math.cos(angle) * helixRadius;
+      const x2 = spineX + Math.cos(angle + Math.PI) * helixRadius;
+      const z1 = Math.sin(angle);
+      const z2 = Math.sin(angle + Math.PI);
+
+      const px1 = x1 * w;
+      const py1 = y * h;
+      const px2 = x2 * w;
+      const py2 = y * h;
+
+      // Rung (connection)
+      if (i % 2 === 0) {
+        ctx.beginPath();
+        ctx.moveTo(px1, py1);
+        ctx.lineTo(px2, py2);
+        const rungAlpha = 0.3 * intensity * (0.5 + Math.abs(z1) * 0.5);
+        ctx.strokeStyle = `rgba(0,255,65,${rungAlpha})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // Node 1 (front)
+      const size1 = (3 + audioMult * 4) * (0.5 + (z1 + 1) * 0.5) * intensity;
+      ctx.beginPath();
+      ctx.arc(px1, py1, size1, 0, Math.PI * 2);
+      const grad1 = ctx.createRadialGradient(px1, py1, 0, px1, py1, size1 * 2);
+      grad1.addColorStop(0, `rgba(0,240,255,${0.8 * intensity})`);
+      grad1.addColorStop(1, 'rgba(0,240,255,0)');
+      ctx.fillStyle = grad1;
+      ctx.fill();
+      ctx.fillStyle = `rgba(255,255,255,${(z1 + 1) * 0.5 * intensity})`;
+      ctx.beginPath();
+      ctx.arc(px1, py1, size1 * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Node 2 (back)
+      const size2 = (3 + audioMult * 4) * (0.5 + (z2 + 1) * 0.5) * intensity;
+      ctx.beginPath();
+      ctx.arc(px2, py2, size2, 0, Math.PI * 2);
+      const grad2 = ctx.createRadialGradient(px2, py2, 0, px2, py2, size2 * 2);
+      grad2.addColorStop(0, `rgba(255,0,255,${0.8 * intensity})`);
+      grad2.addColorStop(1, 'rgba(255,0,255,0)');
+      ctx.fillStyle = grad2;
+      ctx.fill();
+      ctx.fillStyle = `rgba(255,255,255,${(z2 + 1) * 0.5 * intensity})`;
+      ctx.beginPath();
+      ctx.arc(px2, py2, size2 * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+// ============================================================
+// EFECTO 13: AURORA BOREALIS
+// ============================================================
+class AuroraBorealis extends Effect {
+  constructor() {
+    super('Aurora Borealis', 'Espacio / VR', '🌌', [PALETTE.green, PALETTE.cyan, PALETTE.purple, PALETTE.magenta]);
+  }
+
+  render(ctx, body, audio, w, h) {
+    const intensity = CONFIG.intensity * this.intensity;
+    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : (0.3 + audio.volume * 2.5);
+    const audioBass = audio.bass * 2;
+    const t = Date.now() * 0.001 * CONFIG.speed;
+
+    const cx = body ? body.center.x * w : w / 2;
+    const cy = body ? body.center.y * h : h / 2;
+
+    // Background stars
+    for (let i = 0; i < 80; i++) {
+      const seed = i * 137.508;
+      const sx = ((Math.sin(seed) * 0.5 + 0.5) * w);
+      const sy = ((Math.cos(seed * 0.7) * 0.5 + 0.5) * h * 0.6);
+      const st = Math.sin(t * 2 + seed) * 0.5 + 0.5;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 0.5 + st, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${st * 0.4 * intensity})`;
+      ctx.fill();
+    }
+
+    // Aurora curtains
+    const curtainCount = 5;
+    for (let c = 0; c < curtainCount; c++) {
+      const baseY = h * 0.2 + c * h * 0.12;
+      const hue = 120 + c * 40 + Math.sin(t * 0.5 + c) * 30;
+      const amplitude = 30 + audioMult * 60 + audioBass * 30;
+      const freq = 0.003 + c * 0.001;
+      const speed = t * (0.5 + c * 0.2);
+
+      ctx.beginPath();
+      ctx.moveTo(0, baseY);
+      for (let x = 0; x <= w; x += 4) {
+        const y = baseY +
+          Math.sin(x * freq + speed) * amplitude +
+          Math.sin(x * freq * 2.3 + speed * 1.5) * amplitude * 0.4 +
+          Math.sin(x * freq * 0.5 + speed * 0.7) * amplitude * 0.6;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(w, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+
+      const grad = ctx.createLinearGradient(0, baseY - amplitude, 0, h);
+      grad.addColorStop(0, `hsla(${hue}, 80%, 60%, 0)`);
+      grad.addColorStop(0.1, `hsla(${hue}, 80%, 60%, ${0.15 * intensity * audioMult})`);
+      grad.addColorStop(0.4, `hsla(${hue + 30}, 70%, 50%, ${0.08 * intensity * audioMult})`);
+      grad.addColorStop(1, `hsla(${hue}, 80%, 30%, 0)`);
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Bright edge
+      ctx.beginPath();
+      ctx.moveTo(0, baseY);
+      for (let x = 0; x <= w; x += 4) {
+        const y = baseY +
+          Math.sin(x * freq + speed) * amplitude +
+          Math.sin(x * freq * 2.3 + speed * 1.5) * amplitude * 0.4 +
+          Math.sin(x * freq * 0.5 + speed * 0.7) * amplitude * 0.6;
+        ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = `hsla(${hue}, 90%, 70%, ${0.3 * intensity * audioMult})`;
+      ctx.lineWidth = 2;
+      ctx.shadowColor = `hsla(${hue}, 90%, 60%, 0.8)`;
+      ctx.shadowBlur = 15 + audioMult * 20;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    // Body interaction — aurora reacts to body position
+    if (body && body.landmarks) {
+      const lm = body.landmarks;
+      for (let i = 0; i < lm.length; i++) {
+        if (lm[i].visibility < 0.5) continue;
+        const x = lm[i].x * w;
+        const y = lm[i].y * h;
+        const r = 15 + audioMult * 25;
+        const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+        grad.addColorStop(0, `rgba(0,255,200,${0.3 * intensity * audioMult})`);
+        grad.addColorStop(1, 'rgba(0,255,200,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+}
+
+// ============================================================
+// EFECTO 14: FRACTAL TREE
+// ============================================================
+class FractalTree extends Effect {
+  constructor() {
+    super('Fractal Tree', 'Partículas', '🌳', [PALETTE.green, PALETTE.yellow, PALETTE.orange]);
+  }
+
+  render(ctx, body, audio, w, h) {
+    if (!body || !body.landmarks) return;
+    const intensity = CONFIG.intensity * this.intensity;
+    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : (0.3 + audio.volume * 2);
+    const t = Date.now() * 0.001 * CONFIG.speed;
+    const lm = body.landmarks;
+
+    // Draw trees from both hands
+    const hands = [
+      { lm: lm[15], color: 0 }, // left wrist
+      { lm: lm[16], color: 1 }, // right wrist
+    ];
+
+    for (const hand of hands) {
+      if (!hand.lm || hand.lm.visibility < 0.4) continue;
+      const hx = hand.lm.x * w;
+      const hy = hand.lm.y * h;
+      const baseAngle = -Math.PI / 2; // pointing up
+      const length = (60 + audioMult * 80) * intensity;
+      const depth = 8;
+      const branchAngle = 0.4 + Math.sin(t * 2) * 0.15 + audioMult * 0.2;
+
+      this.drawBranch(ctx, hx, hy, length, baseAngle, depth, branchAngle, audioMult, intensity, t, hand.color);
+    }
+  }
+
+  drawBranch(ctx, x, y, length, angle, depth, branchAngle, audioMult, intensity, t, colorIdx) {
+    if (depth <= 0 || length < 2) return;
+
+    const ex = x + Math.cos(angle) * length;
+    const ey = y + Math.sin(angle) * length;
+    const hue = (120 + colorIdx * 60 + (8 - depth) * 15 + t * 20) % 360;
+    const alpha = (depth / 8) * intensity * (0.4 + audioMult * 0.4);
+    const width = depth * 0.8;
+
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(ex, ey);
+    ctx.strokeStyle = `hsla(${hue}, 70%, 55%, ${alpha})`;
+    ctx.lineWidth = width;
+    ctx.shadowColor = `hsla(${hue}, 80%, 60%, 0.6)`;
+    ctx.shadowBlur = 5 + audioMult * 8;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Leaves at tips
+    if (depth <= 2) {
+      ctx.beginPath();
+      ctx.arc(ex, ey, 2 + audioMult * 3, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${hue + 30}, 90%, 65%, ${alpha * 1.5})`;
+      ctx.shadowColor = `hsla(${hue + 30}, 90%, 65%, 0.8)`;
+      ctx.shadowBlur = 8;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    const newLength = length * 0.72;
+    this.drawBranch(ctx, ex, ey, newLength, angle - branchAngle, depth - 1, branchAngle, audioMult, intensity, t, colorIdx);
+    this.drawBranch(ctx, ex, ey, newLength, angle + branchAngle, depth - 1, branchAngle, audioMult, intensity, t, colorIdx);
+  }
+}
+
+// ============================================================
+// EFECTO 15: HOLOGRAM
+// ============================================================
+class Hologram extends Effect {
+  constructor() {
+    super('Hologram', 'Glitch / Retro', '👻', [PALETTE.cyan, PALETTE.blue, PALETTE.white]);
+    this.scanLineY = 0;
+  }
+
+  render(ctx, body, audio, w, h) {
+    if (!body || !body.landmarks) return;
+    const intensity = CONFIG.intensity * this.intensity;
+    const audioMult = CONFIG.audioMode === 'manual' ? 0.5 : (0.3 + audio.treble * 2.5);
+    const t = Date.now() * 0.001;
+    const lm = body.landmarks;
+    const contour = body.contour || this.getContour(lm);
+    if (contour.length < 3) return;
+
+    // Hologram flicker
+    const flicker = 0.85 + Math.sin(t * 30) * 0.05 + Math.random() * 0.1;
+
+    // Body fill — holographic blue
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(contour[0].x * w, contour[0].y * h);
+    for (let i = 1; i < contour.length; i++) {
+      const jitter = (Math.random() - 0.5) * 2 * audioMult;
+      ctx.lineTo(contour[i].x * w + jitter, contour[i].y * h);
+    }
+    ctx.closePath();
+
+    const fillGrad = ctx.createLinearGradient(0, 0, 0, h);
+    fillGrad.addColorStop(0, `rgba(0,200,255,${0.15 * intensity * flicker})`);
+    fillGrad.addColorStop(0.5, `rgba(0,150,255,${0.2 * intensity * flicker})`);
+    fillGrad.addColorStop(1, `rgba(0,100,200,${0.1 * intensity * flicker})`);
+    ctx.fillStyle = fillGrad;
+    ctx.fill();
+
+    // Edge glow
+    ctx.strokeStyle = `rgba(0,240,255,${0.6 * intensity * flicker})`;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = PALETTE.cyan;
+    ctx.shadowBlur = 20 + audioMult * 25;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    // Horizontal scan lines moving down
+    this.scanLineY = (this.scanLineY + (this._dt || 0.016) * 200 * CONFIG.speed) % h;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(contour[0].x * w, contour[0].y * h);
+    for (let i = 1; i < contour.length; i++) {
+      ctx.lineTo(contour[i].x * w, contour[i].y * h);
+    }
+    ctx.closePath();
+    ctx.clip();
+
+    // Scan line sweep
+    const scanGrad = ctx.createLinearGradient(0, this.scanLineY - 30, 0, this.scanLineY + 30);
+    scanGrad.addColorStop(0, 'rgba(0,240,255,0)');
+    scanGrad.addColorStop(0.5, `rgba(0,240,255,${0.4 * intensity})`);
+    scanGrad.addColorStop(1, 'rgba(0,240,255,0)');
+    ctx.fillStyle = scanGrad;
+    ctx.fillRect(0, this.scanLineY - 30, w, 60);
+
+    // Static scan lines
+    ctx.fillStyle = `rgba(0,240,255,${0.04 * intensity})`;
+    for (let y = 0; y < h; y += 4) {
+      ctx.fillRect(0, y, w, 1);
+    }
+    ctx.restore();
+
+    // Holographic data points at landmarks
+    for (let i = 0; i < lm.length; i++) {
+      if (lm[i].visibility < 0.5) continue;
+      const x = lm[i].x * w;
+      const y = lm[i].y * h;
+      const pulse = Math.sin(t * 5 + i * 0.5) * 0.5 + 0.5;
+
+      ctx.beginPath();
+      ctx.arc(x, y, 1.5 + pulse * 2, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0,240,255,${pulse * 0.8 * intensity})`;
+      ctx.shadowColor = PALETTE.cyan;
+      ctx.shadowBlur = 6;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    // Glitch displacement
+    if (audio.beat || Math.random() < audioMult * 0.3) {
+      const glitchCount = 3 + Math.floor(audioMult * 5);
+      for (let i = 0; i < glitchCount; i++) {
+        const gy = Math.random() * h;
+        const gh = 2 + Math.random() * 8;
+        const offset = (Math.random() - 0.5) * 30 * audioMult;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(contour[0].x * w, contour[0].y * h);
+        for (let j = 1; j < contour.length; j++) {
+          ctx.lineTo(contour[j].x * w, contour[j].y * h);
+        }
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(ctx.canvas, offset, 0);
+        ctx.restore();
+      }
+    }
   }
 }
 
@@ -1672,7 +2161,9 @@ class VJProcessor {
     this.fpsTimer = 0;
 
     this.registerEffects();
+    this.loadConfig();
     this.buildUI();
+    this.applyLoadedConfig();
     this.setupEventListeners();
 
     this.startLoop();
@@ -1723,23 +2214,22 @@ class VJProcessor {
       } else if (e.key >= '1' && e.key <= '9') {
         const idx = parseInt(e.key) - 1;
         if (idx < this.engine.effects.length) {
-          this.engine.setEffect(idx);
-          this.updateActiveThumb();
-          this.updateInfoPanel();
-          this.updateColorUI();
+          this.transitionToEffect(idx);
+        }
+      } else if (e.key === '0') {
+        if (this.engine.effects.length > 9) {
+          this.transitionToEffect(9);
         }
       } else if (e.key === 'ArrowRight') {
         const next = (this.engine.activeIndex + 1) % this.engine.effects.length;
-        this.engine.setEffect(next);
-        this.updateActiveThumb();
-        this.updateInfoPanel();
-        this.updateColorUI();
+        this.transitionToEffect(next);
       } else if (e.key === 'ArrowLeft') {
         const prev = (this.engine.activeIndex - 1 + this.engine.effects.length) % this.engine.effects.length;
-        this.engine.setEffect(prev);
-        this.updateActiveThumb();
-        this.updateInfoPanel();
-        this.updateColorUI();
+        this.transitionToEffect(prev);
+      } else if (e.key === 'r' || e.key === 'R') {
+        toggleRecording();
+      } else if (e.key === 's' || e.key === 'S') {
+        takeSnapshot();
       }
     });
   }
@@ -1755,6 +2245,11 @@ class VJProcessor {
     this.engine.register(new EnergyField());
     this.engine.register(new WarpSpeed());
     this.engine.register(new GlitchBody());
+    this.engine.register(new LiquidMetal());
+    this.engine.register(new DNAHelix());
+    this.engine.register(new AuroraBorealis());
+    this.engine.register(new FractalTree());
+    this.engine.register(new Hologram());
   }
 
   buildUI() {
@@ -1766,9 +2261,7 @@ class VJProcessor {
       thumb.className = `effect-thumb${i === this.engine.activeIndex ? ' active' : ''}`;
       thumb.innerHTML = `<span class="emoji">${effect.emoji}</span><span class="label">${effect.name.split(' ')[0]}</span>`;
       thumb.onclick = () => {
-        this.engine.setEffect(i);
-        this.updateActiveThumb();
-        this.updateInfoPanel();
+        this.transitionToEffect(i);
       };
       grid.appendChild(thumb);
     });
@@ -1860,9 +2353,15 @@ class VJProcessor {
 
   addColorToActive() {
     const effect = this.engine.active;
-    // Pick a random new color
     const hue = Math.random() * 360;
-    const hex = `#${Math.floor(Math.random()*255).toString(16).padStart(2,'0')}${Math.floor(Math.random()*255).toString(16).padStart(2,'0')}${Math.floor(Math.random()*255).toString(16).padStart(2,'0')}`;
+    // HSL to hex conversion for vibrant neon colors
+    const h = hue / 360, s = 0.9, l = 0.55;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => {
+      const k = (n + h * 12) % 12;
+      return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))));
+    };
+    const hex = `#${f(0).toString(16).padStart(2,'0')}${f(8).toString(16).padStart(2,'0')}${f(4).toString(16).padStart(2,'0')}`;
     effect.colors.push(hex);
     this.updateColorUI();
     this.updateInfoPanel();
@@ -1878,6 +2377,88 @@ class VJProcessor {
     } else {
       uploadBtn.style.display = 'none';
     }
+  }
+
+  // ============================================================
+  // PERSISTENCIA localStorage
+  // ============================================================
+  saveConfig() {
+    try {
+      const saved = {
+        intensity: CONFIG.intensity,
+        cameraOpacity: CONFIG.cameraOpacity,
+        speed: CONFIG.speed,
+        audioMode: CONFIG.audioMode,
+        bgMode: CONFIG.bgMode,
+        mirrored: CONFIG.mirrored,
+        activeEffect: this.engine.activeIndex,
+        effectColors: this.engine.effects.map(e => e.colors),
+      };
+      localStorage.setItem('blonde-vj-config', JSON.stringify(saved));
+    } catch (e) {}
+  }
+
+  loadConfig() {
+    try {
+      const raw = localStorage.getItem('blonde-vj-config');
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved.intensity !== undefined) CONFIG.intensity = saved.intensity;
+      if (saved.cameraOpacity !== undefined) CONFIG.cameraOpacity = saved.cameraOpacity;
+      if (saved.speed !== undefined) CONFIG.speed = saved.speed;
+      if (saved.audioMode) CONFIG.audioMode = saved.audioMode;
+      if (saved.bgMode) CONFIG.bgMode = saved.bgMode;
+      if (saved.mirrored !== undefined) CONFIG.mirrored = saved.mirrored;
+      this._pendingEffectIndex = saved.activeEffect || 0;
+      this._pendingColors = saved.effectColors;
+    } catch (e) {}
+  }
+
+  applyLoadedConfig() {
+    // Apply UI from loaded config
+    document.getElementById('sliderIntensity').value = Math.round(CONFIG.intensity * 100);
+    document.getElementById('valIntensity').textContent = Math.round(CONFIG.intensity * 100) + '%';
+    document.getElementById('sliderOpacity').value = Math.round(CONFIG.cameraOpacity * 100);
+    document.getElementById('valOpacity').textContent = Math.round(CONFIG.cameraOpacity * 100) + '%';
+    document.getElementById('sliderSpeed').value = Math.round(CONFIG.speed * 100);
+    document.getElementById('valSpeed').textContent = CONFIG.speed.toFixed(1) + 'x';
+    document.querySelectorAll('.mode-pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.mode === CONFIG.audioMode);
+    });
+    document.querySelectorAll('.bg-mode-pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.bg === CONFIG.bgMode);
+    });
+    // Restore effect colors
+    if (this._pendingColors) {
+      this.engine.effects.forEach((e, i) => {
+        if (this._pendingColors[i]) e.colors = this._pendingColors[i];
+      });
+    }
+    // Restore active effect
+    if (this._pendingEffectIndex !== undefined) {
+      this.engine.setEffect(this._pendingEffectIndex);
+      this.updateActiveThumb();
+      this.updateInfoPanel();
+      this.updateColorUI();
+    }
+    // Auto-save every 5 seconds
+    setInterval(() => this.saveConfig(), 5000);
+  }
+
+  // ============================================================
+  // TRANSICIONES ENTRE EFECTOS
+  // ============================================================
+  transitionToEffect(index) {
+    const overlay = document.getElementById('transitionOverlay');
+    overlay.classList.add('active');
+    setTimeout(() => {
+      this.engine.setEffect(index);
+      this.updateActiveThumb();
+      this.updateInfoPanel();
+      this.updateColorUI();
+      this.engine.clearTrail();
+      setTimeout(() => overlay.classList.remove('active'), 50);
+    }, 250);
   }
 
   startLoop() {
@@ -2030,6 +2611,10 @@ class VJProcessor {
       if (loading) loading.classList.add('hidden');
 
       const video = document.getElementById('webcamVideo');
+      // Cleanup previous stream to avoid leftover webcam light
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(t => t.stop());
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
       });
@@ -2225,6 +2810,95 @@ function loadBackground(event) {
 
 function addColorToActive() {
   if (app) app.addColorToActive();
+}
+
+// ============================================================
+// GRABACIÓN DE SESIÓN (MediaRecorder)
+// ============================================================
+let mediaRecorder = null;
+let recordedChunks = [];
+let recStartTime = 0;
+let recTimerInterval = null;
+
+function toggleRecording() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    return;
+  }
+  if (!app || !app.canvas) return;
+  try {
+    const stream = app.canvas.captureStream(30);
+    recordedChunks = [];
+    const mimeTypes = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    let mimeType = '';
+    for (const mt of mimeTypes) {
+      if (MediaRecorder.isTypeSupported(mt)) { mimeType = mt; break; }
+    }
+    mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType, videoBitsPerSecond: 5000000 } : {});
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) recordedChunks.push(e.data);
+    };
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `blonde-vj-${Date.now()}.webm`;
+      a.click();
+      URL.revokeObjectURL(url);
+      const btn = document.getElementById('btnRec');
+      btn.classList.remove('recording');
+      btn.textContent = '🔴 REC';
+      document.getElementById('recTimer').classList.remove('show');
+      clearInterval(recTimerInterval);
+      showToast('🎬 Vídeo guardado');
+    };
+    mediaRecorder.start();
+    const btn = document.getElementById('btnRec');
+    btn.classList.add('recording');
+    btn.textContent = '⏹ STOP';
+    recStartTime = Date.now();
+    document.getElementById('recTimer').classList.add('show');
+    recTimerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - recStartTime) / 1000);
+      const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
+      const ss = String(elapsed % 60).padStart(2, '0');
+      document.getElementById('recTimer').textContent = `● ${mm}:${ss}`;
+    }, 1000);
+    showToast('🔴 Grabando...');
+  } catch (e) {
+    console.error('Recording error:', e);
+    showToast('❌ No se puede grabar');
+  }
+}
+
+// ============================================================
+// SNAPSHOT (capturar PNG del canvas)
+// ============================================================
+function takeSnapshot() {
+  if (!app || !app.canvas) return;
+  try {
+    const link = document.createElement('a');
+    link.download = `blonde-vj-snap-${Date.now()}.png`;
+    link.href = app.canvas.toDataURL('image/png');
+    link.click();
+    showToast('📸 Snapshot guardado');
+  } catch (e) {
+    console.error('Snapshot error:', e);
+    showToast('❌ No se puede capturar');
+  }
+}
+
+// ============================================================
+// TOAST NOTIFICATION
+// ============================================================
+let toastTimeout = null;
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => toast.classList.remove('show'), 2500);
 }
 
 // ============================================================

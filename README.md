@@ -21,7 +21,7 @@ Un processor VJ que convierte el movimiento de un artista en visuales cyberpunk/
 
 **No necesita servidor** — solo doble-click en el archivo.
 
-## 🎨 Efectos (10 incluidos)
+## 🎨 Efectos (15 incluidos)
 
 | # | Efecto | Categoría | Emoji |
 |---|--------|-----------|-------|
@@ -35,19 +35,32 @@ Un processor VJ que convierte el movimiento de un artista en visuales cyberpunk/
 | 8 | Energy Field | Onda / Energía | ⚡ |
 | 9 | Warp Speed | Espacio / VR | 🚀 |
 | 10 | Glitch Body | Glitch / Retro | 🔴 |
+| 11 | Liquid Metal | Luz Neón | 🤖 |
+| 12 | DNA Helix | Partículas | 🧬 |
+| 13 | Aurora Borealis | Espacio / VR | 🌌 |
+| 14 | Fractal Tree | Partículas | 🌳 |
+| 15 | Hologram | Glitch / Retro | 👻 |
+
+## 🎬 Grabación y Snapshot
+
+- **🔴 REC** — Graba tu sesión en vídeo WebM y descárgala automáticamente
+- **📸 Snapshot** — Captura un frame en PNG de alta calidad
+- La configuración se guarda automáticamente en el navegador (localStorage)
 
 ## ⌨️ Atajos de Teclado
 
 | Tecla | Acción |
 |-------|--------|
-| `1-9` | Seleccionar efecto |
-| `← →` | Navegar efectos |
+| `1-9, 0` | Seleccionar efecto rápido |
+| `← →` | Navegar efectos (15 total) |
 | `F11` | Modo presentación |
 | `Space` | Pausar / reanudar |
 | `M` | Activar / desactivar micrófono |
 | `C` | Mostrar landmarks del cuerpo |
 | `F` | Alternar espejo webcam |
 | `+ -` | Intensidad del efecto |
+| `R` | Grabar sesión (WebM) |
+| `S` | Snapshot (PNG) |
 | `?` | Mostrar atajos |
 
 ## 🔧 Stack
@@ -55,6 +68,7 @@ Un processor VJ que convierte el movimiento de un artista en visuales cyberpunk/
 - **MediaPipe Pose** — Detección de 33 landmarks del cuerpo en tiempo real
 - **Web Audio API** — FFT del micrófono para reactividad al beat
 - **Canvas 2D** — Renderizado de efectos a 60 FPS
+- **MediaRecorder API** — Grabación de sesión en vídeo
 - **100% en el navegador** — Sin servidor, sin npm, sin dependencias
 
 ## 🎵 Modos de Reactividad
@@ -63,6 +77,18 @@ Un processor VJ que convierte el movimiento de un artista en visuales cyberpunk/
 - **Audio** — Solo reacciona al sonido
 - **Movimiento** — Solo reacciona al cuerpo
 - **Manual** — Parámetros fijos
+
+## 🎨 Características
+
+- **15 efectos visuales** cyberpunk/espacial
+- **Editor de colores** en tiempo real por efecto
+- **4 modos de fondo** — Webcam, Vídeo, Foto, Negro
+- **Post-processing bloom** — Glow y saturación en el canvas
+- **Transiciones suaves** entre efectos
+- **Persistencia automática** — Tu configuración se guarda sola
+- **Detección de beat y BPM** en tiempo real
+- **Visualizador de espectro** de audio
+- **Responsive** — Funciona en móvil y tablet
 
 ## 📱 Requisitos
 
